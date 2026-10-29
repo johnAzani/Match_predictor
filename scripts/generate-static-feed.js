@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { createDataService } from '../server/data-service.js'
 import { updateTracker } from '../server/tracker.js'
 import { TRACKER_VERSION } from '../src/lib/tracker.js'
+import { assertLedgerContinuity } from './lib/ledger-integrity.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const destination = resolve(root, 'public/data/matchday.json')
@@ -31,7 +32,10 @@ try {
   try { previous = JSON.parse(await readFile(trackerPath, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
   const input = await createDataService({ fetchImpl }).getTrackingInput()
   const tracker = updateTracker(previous, input, new Date(), publication)
-  const data = { ...input.feed, trackerVersion: TRACKER_VERSION }
+  assertLedgerContinuity(previous, tracker)
+  // The next Pages build must expect a verified release backup. Local preview
+  // snapshots are not deployed or accepted as public backup evidence.
+  const data = { ...input.feed, trackerVersion: TRACKER_VERSION, ...(publication === 'github-pages' ? { backupVersion: 1 } : {}) }
   await mkdir(dirname(destination), { recursive: true })
   await writeAtomically(trackerPath, tracker)
   await writeAtomically(destination, data)

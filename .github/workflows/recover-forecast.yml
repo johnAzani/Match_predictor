@@ -1,0 +1,102 @@
+name: Recover forecast history (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type RESTORE LATEST VERIFIED BACKUP. Forecasts newer than the backup may be lost.'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Never race the ordinary Pages deployment or its post-deployment backup.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Validate and prepare the latest confirmed backup
+        run: node --use-system-ca scripts/restore-confirmed-backup.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+          RECOVERY_CONFIRMATION: ${{ inputs.confirmation }}
+      - name: Keep the prepared recovery ledger for post-deployment verification
+        uses: actions/upload-artifact@v7
+        with:
+          name: recovery-ledger
+          path: public/data/track-record.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Set the GitHub Pages base path
+        shell: bash
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          if [[ "${repo_name,,}" == "${GITHUB_REPOSITORY_OWNER,,}.github.io" ]]; then
+            echo 'VITE_BASE=/' >> "$GITHUB_ENV"
+          else
+            echo "VITE_BASE=/${repo_name}/" >> "$GITHUB_ENV"
+          fi
+      - name: Build without generating forecasts
+        run: npm run build
+        env:
+          VITE_STATIC_FEED: 'true'
+          VITE_GITHUB_REPOSITORY: ${{ github.repository }}
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Restore the verified history to Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
+  verify:
+    needs: [prepare, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          name: recovery-ledger
+          path: recovery-ledger
+      - name: Confirm the recovered ledger on the public site
+        run: node --use-system-ca scripts/verify-recovery-publication.js
+        env:
+          PAGES_BASE_URL: ${{ needs.deploy.outputs.page_url }}
