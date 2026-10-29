@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import ForecastHistory from '../src/components/ForecastHistory.jsx'
@@ -56,6 +56,25 @@ describe('history classification and filtering', () => {
 })
 
 describe('integrated forecast history', () => {
+  it('resolves a direct archive link when the ledger loads after initial navigation', () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+    window.history.replaceState(null, '', '#forecast-history')
+    try {
+      const view = render(<p>Loading the forecast track record…</p>)
+      expect(scroll).not.toHaveBeenCalled()
+      view.rerender(<ForecastHistory records={sample} publication="github-pages" />)
+      expect(scroll).toHaveBeenCalledWith({ block: 'start' })
+      expect(scroll.mock.instances[0]).toBe(screen.getByRole('region', { name: 'THE FULL RECORD' }))
+      view.unmount()
+      scroll.mockClear()
+      window.history.replaceState(null, '', '#track-record')
+      render(<ForecastHistory records={sample} publication="github-pages" />)
+      expect(scroll).not.toHaveBeenCalled()
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+
   it('filters the full list by team, league, status and date and resets a no-results state', async () => {
     const user = userEvent.setup()
     render(<ForecastHistory records={sample} publication="github-pages" />)
