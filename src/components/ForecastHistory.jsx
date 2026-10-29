@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, ChevronDown, Search } from 'lucide-react'
 import { leagues } from '../data/fixtures.js'
 import { DEFAULT_HISTORY_FILTERS, EXCLUSION_EXPLANATIONS, filterHistory, historyMatchDate, historyPickName, historyStatus } from '../lib/forecastHistory.js'
@@ -86,6 +86,7 @@ function HistoryRow({ record, publication, expanded, onToggle }) {
 }
 
 export default function ForecastHistory({ records, publication }) {
+  const historyRef = useRef(null)
   const [filters, setFilters] = useState(DEFAULT_HISTORY_FILTERS)
   const [page, setPage] = useState(1)
   const [expandedId, setExpandedId] = useState(null)
@@ -102,6 +103,12 @@ export default function ForecastHistory({ records, publication }) {
   const shown = filtered.slice(start, start + PAGE_SIZE)
   const invalidRange = filters.from && filters.to && filters.from > filters.to
   const hasFilters = Object.keys(DEFAULT_HISTORY_FILTERS).some((key) => filters[key] !== DEFAULT_HISTORY_FILTERS[key])
+
+  // The archive is mounted only after the ledger loads, so the browser's
+  // initial fragment navigation may have run before its target existed.
+  useEffect(() => {
+    if (window.location.hash === '#forecast-history') historyRef.current?.scrollIntoView({ block: 'start' })
+  }, [])
 
   useEffect(() => {
     setPage((current) => Math.min(current, pageCount))
@@ -125,7 +132,7 @@ export default function ForecastHistory({ records, publication }) {
   }
 
   return (
-    <section id="forecast-history" className="history-section" aria-labelledby="history-title">
+    <section ref={historyRef} id="forecast-history" className="history-section" aria-labelledby="history-title">
       <div className="history-heading">
         <div><div className="history-heading__kicker"><span /> 05 / EVERY RECORDED PICK</div><h3 id="history-title">THE FULL RECORD<span aria-hidden="true">.</span></h3><p>Explore every forecast in the prospective ledger. Select a match for its original pick and audit trail.</p></div>
         <div className="history-heading__count"><strong>{String(records.length).padStart(2, '0')}</strong><span>RECORDED<br />FORECASTS</span></div>
