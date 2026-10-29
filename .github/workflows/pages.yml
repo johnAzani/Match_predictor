@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - arena/39cd0d36-match-predictor
   workflow_dispatch:
   # GitHub runs scheduled workflows from the default branch only.
   schedule:
@@ -30,10 +29,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
-      - name: Generate community data snapshot
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Restore the published forecast ledger
+        run: node --use-system-ca scripts/restore-tracker.js
+        env:
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+      - name: Generate community data snapshot and update the ledger
         run: npm run snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRACKER_PUBLICATION: github-pages
+      - name: Back up the forecast ledger
+        uses: actions/upload-artifact@v7
+        with:
+          name: forecast-ledger
+          path: public/data/track-record.json
+          retention-days: 90
+          if-no-files-found: error
       - name: Set the GitHub Pages base path
         shell: bash
         run: |
@@ -47,7 +61,6 @@ jobs:
         run: npm run build
         env:
           VITE_STATIC_FEED: 'true'
-      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist

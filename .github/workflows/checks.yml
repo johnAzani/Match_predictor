@@ -1,0 +1,38 @@
+name: Verify application
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      # This is a local preview ledger only; it is never deployed or restored
+      # into the public record.
+      - run: npm run snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set the GitHub Pages base path
+        shell: bash
+        run: |
+          repo_name="${GITHUB_REPOSITORY#*/}"
+          if [[ "${repo_name,,}" == "${GITHUB_REPOSITORY_OWNER,,}.github.io" ]]; then
+            echo 'VITE_BASE=/' >> "$GITHUB_ENV"
+          else
+            echo "VITE_BASE=/${repo_name}/" >> "$GITHUB_ENV"
+          fi
+      - run: npm run build
+        env:
+          VITE_STATIC_FEED: 'true'

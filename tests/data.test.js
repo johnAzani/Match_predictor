@@ -28,6 +28,9 @@ describe('community data and walk-forward evaluation', () => {
     const same = { date: '2026-10-01', home: 'A', away: 'B', ft_home: '1', ft_away: '0' }
     expect(normalizeCommunityResults([same, same])).toHaveLength(1)
     expect(normalizeCommunityResults([same, { ...same, ft_home: '2' }])).toHaveLength(0)
+    expect(normalizeCommunityResults([same, same, { ...same, ft_home: '2' }], { keepConflicts: true })).toHaveLength(2)
+    const historical = { date: '2025-08-01', team1: 'A', team2: 'B', score: [1, 0] }
+    expect(normalizeHistoricalResults({ matches: [historical, historical, { ...historical, score: [2, 0] }] }, { keepConflicts: true })).toHaveLength(2)
   })
 
   it('does not use any results from the same day when backtesting', () => {
@@ -101,6 +104,17 @@ describe('shared provider cache', () => {
     expect(stale.fixtures).toHaveLength(4)
     expect(stale.source.stale).toBe(true)
     expect(stale.source.refreshFailed).toBe(true)
+  })
+
+  it('preserves conflicting source scores for the tracker without feeding them to the model', async () => {
+    const fallback = mockProvider()
+    const provider = vi.fn(async (url) => url.includes('results_2627.csv')
+      ? githubResponse('date,home,away,ft_home,ft_away\n2026-10-01,Alpha,Beta,1,0\n2026-10-01,Alpha,Beta,2,0\n2026-10-01,Alpha,Beta,1,0\n')
+      : fallback(url))
+    const service = createDataService({ fetchImpl: provider, clock: () => new Date('2026-10-29T10:00:00Z') })
+    const { feed, datasets } = await service.getTrackingInput()
+    expect(datasets.find((item) => item.season === '2026-27' && item.league.id === league.id).results).toHaveLength(2)
+    expect(feed.fixtures.find((item) => item.league.id === league.id).hasEnoughData).toBe(false)
   })
 
   it('reports an unavailable league rather than inventing its fixtures', async () => {

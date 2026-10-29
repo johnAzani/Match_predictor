@@ -53,13 +53,13 @@ function Modal({ children, onClose, titleId, className = '' }) {
   )
 }
 
-export function AnalysisDialog({ fixture, prediction, onClose, isCommunity }) {
+export function AnalysisDialog({ fixture, prediction, lockedAt, trackingStatus, onClose, isCommunity }) {
   const lean = prediction?.lean
   return (
     <Modal onClose={onClose} titleId="analysis-title" className="analysis-modal">
       <div className="modal-kicker"><CountryFlag country={fixture.league.country} /> {fixture.league.name} <span> / </span> {fixture.day} · {fixture.time} <span> / </span> {isCommunity ? 'COMMUNITY FIXTURE' : 'DEMO FIXTURE'}</div>
       <h2 id="analysis-title" className="modal-title">THE MATCH BREAKDOWN<span aria-hidden="true">.</span></h2>
-      <p className="modal-subtitle">{isCommunity ? 'A closer look at the recent league results behind this estimate.' : 'A closer look at what the sample numbers are saying.'}</p>
+      <p className="modal-subtitle">{lockedAt ? `This ${trackingStatus === 'preview' ? 'preview ' : ''}forecast and its inputs were recorded for tracking on ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(new Date(lockedAt))} UTC.` : isCommunity ? `A closer look at the recent league results behind this estimate. ${trackingStatus === 'loading' ? 'Tracking status is loading.' : trackingStatus === 'unavailable' ? 'Tracking status could not be checked.' : 'This estimate is not in active tracking.'}` : 'A closer look at what the sample numbers are saying.'}</p>
 
       <div className="dialog-matchup">
         <div className="dialog-team"><Crest team={fixture.home} /><strong>{fixture.home.name}</strong><span>HOME</span></div>
@@ -110,6 +110,7 @@ export function MethodDialog({ onClose, isCommunity, report, source }) {
         <p>{report.firstDate} to {report.lastDate}. Each match uses only results from earlier dates in the same league and season; {report.skipped.toLocaleString()} matches without enough history were skipped. Accuracy uses unrounded probabilities. Multiclass Brier and log loss ({report.logLoss.toFixed(3)}) are lower-is-better. The source may have gaps.</p>
         {Number.isInteger(source?.historicalLeagueCount) && <p>Previous-season results available for {source.historicalLeagueCount} of {source.availableLeagueCount} current leagues.</p>}
       </div>}
+      {isCommunity && <p className="modal-sources">The track record is separate from this historical simulation. Eligible forecasts are frozen and checked for publication before kick-off; accuracy appears only as verified final scores become available.</p>}
       {isCommunity && source?.delivery === 'github-pages' && <p className="modal-sources">GitHub Pages serves a static data snapshot. If it is over a day old, your browser attempts to refresh it from the public community source. Updates may be delayed or rate-limited.</p>}
       {isCommunity && <p className="modal-sources">Fixtures and current results: <a href="https://github.com/oladeeayo/open-matchday" target="_blank" rel="noreferrer">open-matchday</a> (sources include FixtureDownload, OpenLigaDB, ESPN and football-data.co.uk). Prior-season results: <a href="https://github.com/openfootball/football.json" target="_blank" rel="noreferrer">openfootball</a>.</p>}
       <div className="modal-disclaimer"><Lightbulb size={16} aria-hidden="true" /><span>{isCommunity ? 'Community data is updated daily, not live, and is for non-commercial use. The backtest is not proof of future performance or calibration; predictions are not betting advice.' : 'Everything here uses sample data, not a live feed. This is a demonstration, not a validated forecasting service or betting advice.'}</span></div>
