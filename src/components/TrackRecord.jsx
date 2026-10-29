@@ -1,6 +1,7 @@
 import { ArrowRight, CalendarClock, Crosshair } from 'lucide-react'
 import { leagues } from '../data/fixtures.js'
 import { summarizeTracker } from '../lib/tracker.js'
+import ForecastHistory from './ForecastHistory.jsx'
 
 function shortDate(value) {
   const date = value.length === 10 ? new Date(`${value}T12:00:00Z`) : new Date(value)
@@ -58,6 +59,8 @@ function RecordRows({ summary }) {
           <div><strong>{record.home.shortName} <span>vs</span> {record.away.shortName}</strong><small>{shortDate(record.result.date)} · Pick: {pickName(record)}</small></div>
           <div className="track-row__result"><strong>{record.result.homeGoals} : {record.result.awayGoals}</strong><span className={record.correct ? 'is-correct' : 'is-missed'}>{record.correct ? 'CORRECT' : 'MISSED'}</span></div>
         </li>)}</ul> : <div className="track-empty track-empty--small"><p>No predictions have been scored yet. Finished matches appear here when the community results are available.</p></div>}
+        {summary.evaluated > 5 && <p className="track-panel__footnote">Showing 5 of {summary.evaluated} scored results.</p>}
+        <a className="track-history-link" href="#forecast-history">Browse the full record <ArrowRight size={13} aria-hidden="true" /></a>
       </div>
       <div className="track-panel track-panel--list">
         <div className="track-panel__heading"><div><span>04 / ON THE RECORD</span><h3>AWAITING RESULTS</h3></div><span className="track-panel__count">{summary.pending} PENDING</span></div>
@@ -66,6 +69,7 @@ function RecordRows({ summary }) {
           <div className="track-row__pick"><small>{record.verifiedAt ? 'VERIFIED PICK' : 'CHECK PENDING'}</small><strong>{pickName(record)}</strong></div>
         </li>)}</ul> : <div className="track-empty track-empty--small"><p>No eligible forecasts are awaiting results yet. New predictions are recorded as fixtures approach.</p></div>}
         {summary.pending > 5 && <p className="track-panel__footnote">Showing 5 of {summary.pending} awaiting results.</p>}
+        <a className="track-history-link" href="#forecast-history">Browse the full record <ArrowRight size={13} aria-hidden="true" /></a>
       </div>
     </div>
   )
@@ -92,6 +96,7 @@ export default function TrackRecord({ tracker }) {
         </div>
         <div className="track-panels"><LeaguePerformance summary={summary} /><TimePerformance summary={summary} /></div>
         <RecordRows summary={summary} />
+        <ForecastHistory records={data.records} publication={data.publication} />
         <p className="track-method">The first eligible prediction is locked within 48 hours of kick-off, at least two hours early and before the match’s calendar day. A later build must observe it on the published site before its original kick-off, or it is excluded from accuracy. Tied leans, unknown kick-offs and insufficient history are not tracked. Scores are checked no earlier than the following UTC day; postponements, source gaps and approximate UTC+1 times can affect coverage. Historical accuracy does not guarantee future performance.</p>
       </>}
     </section>
