@@ -9,3 +9,5 @@ coverage/
 
 # Generated for GitHub Pages builds, not source data
 /public/data/matchday.json
+/public/data/track-record.json
+/public/data/*.tmp

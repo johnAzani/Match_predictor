@@ -6,6 +6,9 @@ import {
 import { leagues } from './data/fixtures.js'
 import { hasPredictionData, predictMatch } from './lib/predictions.js'
 import { useMatchdayFeed } from './lib/useMatchdayFeed.js'
+import { useTrackRecord } from './lib/useTrackRecord.js'
+import { frozenPrediction } from './lib/tracker.js'
+import TrackRecord from './components/TrackRecord.jsx'
 import { Brand, Crest, TextLink } from './components/Shared.jsx'
 import MatchCard from './components/MatchCard.jsx'
 import { AnalysisDialog, MethodDialog } from './components/Dialogs.jsx'
@@ -46,6 +49,7 @@ function Header({ savedCount, savedOnly, onToggleSavedView, onOpenMethod, feed }
         <nav id="main-navigation" className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
           <a className="main-nav__active" href="#predictions" onClick={closeMenu}>Predictions</a>
           <a href="#leagues" onClick={closeMenu}>Leagues</a>
+          <a href="#track-record" onClick={closeMenu}>Track record</a>
           <button type="button" onClick={() => { closeMenu(); onOpenMethod() }}>How it works</button>
         </nav>
         <div className="header-actions">
@@ -178,7 +182,7 @@ function EmptyState({ savedOnly, query, league, isCommunity, onReset }) {
 function HowItWorks({ onOpenMethod }) {
   return (
     <section className="how-section" aria-labelledby="how-title">
-      <div className="how-section__intro"><div className="section-kicker"><span /> THE PITCHSIDE PLAYBOOK <i>/</i> 02</div><h2 id="how-title">A LITTLE CONTEXT.<br /><em>A LOT MORE FOOTBALL.</em></h2><p>Because the best conversations start with a little perspective.</p><TextLink onClick={onOpenMethod}>Get to know the model</TextLink></div>
+      <div className="how-section__intro"><div className="section-kicker"><span /> THE PITCHSIDE PLAYBOOK <i>/</i> 03</div><h2 id="how-title">A LITTLE CONTEXT.<br /><em>A LOT MORE FOOTBALL.</em></h2><p>Because the best conversations start with a little perspective.</p><TextLink onClick={onOpenMethod}>Get to know the model</TextLink></div>
       <div className="how-step"><span>01 <i>↗</i></span><div className="how-step__icon"><Sparkles size={20} /></div><h3>FORM MATTERS</h3><p>Recent results give the model a little context about each side.</p></div>
       <div className="how-step"><span>02 <i>↗</i></span><div className="how-step__icon"><Crosshair size={20} /></div><h3>GOALS TELL A STORY</h3><p>Scoring and conceding rates help shape the possible outcomes.</p></div>
       <div className="how-step"><span>03 <i>↗</i></span><div className="how-step__icon"><Clock3 size={20} /></div><h3>EVERY ANGLE</h3><p>See the home, draw and away picture in one easy view.</p></div>
@@ -192,7 +196,7 @@ function Footer({ onOpenMethod, isCommunity }) {
       <div className="footer-inner page-shell">
         <div><Brand footer /><p>For the love of football and a little more insight.</p></div>
         <div className="footer-note"><span>MADE FOR THE FANS. BUILT FOR THE GAME.</span><p>{isCommunity ? <>Data: <a href="https://github.com/oladeeayo/open-matchday" target="_blank" rel="noreferrer">open-matchday</a> and <a href="https://github.com/openfootball/football.json" target="_blank" rel="noreferrer">openfootball</a>. Community data is for non-commercial use; provider terms apply. Predictions are not betting advice.</> : 'Demo fixtures and statistics are illustrative. Predictions are not guarantees or betting advice.'}</p></div>
-        <div className="footer-links"><a href="#predictions">Predictions</a><button type="button" onClick={onOpenMethod}>How it works</button><a href="#top">Back to top ↑</a></div>
+        <div className="footer-links"><a href="#predictions">Predictions</a><a href="#track-record">Track record</a><button type="button" onClick={onOpenMethod}>How it works</button><a href="#top">Back to top ↑</a></div>
       </div>
       <div className="footer-bottom page-shell"><span>© PITCHSIDE — THE MATCHDAY EDIT</span><span>THE BEAUTIFUL GAME, IN NUMBERS <span>✳</span></span></div>
     </footer>
@@ -201,6 +205,7 @@ function Footer({ onOpenMethod, isCommunity }) {
 
 export default function App() {
   const feed = useMatchdayFeed()
+  const tracker = useTrackRecord()
   const [saved, setSaved] = useState(readSavedMatches)
   const [savedOnly, setSavedOnly] = useState(false)
   const [league, setLeague] = useState('all')
@@ -209,7 +214,17 @@ export default function App() {
   const [visibleLimit, setVisibleLimit] = useState(PAGE_SIZE)
   const [modal, setModal] = useState(null)
 
-  const allMatches = useMemo(() => feed.fixtures.map((fixture) => ({ fixture, prediction: hasPredictionData(fixture) ? predictMatch(fixture) : null })), [feed.fixtures])
+  const lockedForecasts = useMemo(() => new Map((tracker.data?.records || [])
+    .filter((record) => !record.result && !record.excludedReason).map((record) => [record.id, record])), [tracker.data])
+  const allMatches = useMemo(() => feed.fixtures.map((fixture) => {
+    const locked = feed.status === 'community' ? lockedForecasts.get(fixture.id) : null
+    if (locked) {
+      // Show the same archived pick and inputs that will later be scored.
+      const archivedFixture = { ...fixture, home: { ...fixture.home, ...locked.home }, away: { ...fixture.away, ...locked.away } }
+      return { fixture: archivedFixture, prediction: frozenPrediction(locked, archivedFixture), lockedAt: locked.recordedAt }
+    }
+    return { fixture, prediction: hasPredictionData(fixture) ? predictMatch(fixture) : null, lockedAt: null }
+  }), [feed.fixtures, feed.status, lockedForecasts])
   const savedCount = useMemo(() => allMatches.filter(({ fixture }) => saved.includes(fixture.id)).length, [allMatches, saved])
   const visibleMatches = useMemo(() => {
     const search = normalizeSearch(query.trim())
@@ -228,6 +243,7 @@ export default function App() {
   }, [allMatches, visibleMatches])
   const shownMatches = visibleMatches.slice(0, visibleLimit)
   const isCommunity = feed.status === 'community'
+  const trackingStatus = !isCommunity ? 'demo' : tracker.status === 'ready' && tracker.data.publication === 'local-preview' ? 'preview' : tracker.status
 
   useEffect(() => { setVisibleLimit(PAGE_SIZE) }, [league, query, savedOnly, sort, feed.status])
   useEffect(() => {
@@ -235,8 +251,12 @@ export default function App() {
   }, [saved])
 
   const openMethod = useCallback(() => setModal({ type: 'method' }), [])
-  const openAnalysis = useCallback((fixture) => setModal({ type: 'analysis', fixture }), [])
+  const openAnalysis = useCallback((fixture) => {
+    const item = allMatches.find((match) => match.fixture.id === fixture.id)
+    setModal({ type: 'analysis', fixture: item?.fixture ?? fixture, prediction: item?.prediction ?? null, lockedAt: item?.lockedAt ?? null })
+  }, [allMatches])
   const closeModal = useCallback(() => setModal(null), [])
+  const selectedMatch = modal?.type === 'analysis' ? allMatches.find((match) => match.fixture.id === modal.fixture.id) : null
 
   function toggleSaved(id) {
     setSaved((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id])
@@ -268,15 +288,16 @@ export default function App() {
             <label className="sort-control"><ArrowDownWideNarrow size={15} aria-hidden="true" /><span>Sort by:</span><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort matches"><option value="kickoff">Kick-off</option><option value="confidence">Highest probability</option></select><ChevronDown size={13} aria-hidden="true" /></label>
           </div>
           <div className="content-layout">
-            {feed.status === 'loading' ? <div className="empty-state" role="status"><span className="empty-state__icon"><Clock3 size={23} /></span><h3>GETTING THE MATCHDAY READY.</h3><p>Loading the latest available fixtures and historical results.</p></div> : visibleMatches.length ? <div className="match-list"><div className="match-grid">{shownMatches.map(({ fixture, prediction }) => <MatchCard key={fixture.id} fixture={fixture} prediction={prediction} saved={saved.includes(fixture.id)} onToggleSaved={toggleSaved} onOpen={openAnalysis} />)}</div>{shownMatches.length < visibleMatches.length && <button type="button" className="button button--outline show-more" onClick={() => setVisibleLimit((current) => current + PAGE_SIZE)}>Show more matches <ArrowRight size={16} /></button>}</div> : <EmptyState savedOnly={savedOnly} query={query} league={league} isCommunity={isCommunity} onReset={resetFilters} />}
+            {feed.status === 'loading' ? <div className="empty-state" role="status"><span className="empty-state__icon"><Clock3 size={23} /></span><h3>GETTING THE MATCHDAY READY.</h3><p>Loading the latest available fixtures and historical results.</p></div> : visibleMatches.length ? <div className="match-list"><div className="match-grid">{shownMatches.map(({ fixture, prediction, lockedAt }) => <MatchCard key={fixture.id} fixture={fixture} prediction={prediction} lockedAt={lockedAt} trackingStatus={trackingStatus} saved={saved.includes(fixture.id)} onToggleSaved={toggleSaved} onOpen={openAnalysis} />)}</div>{shownMatches.length < visibleMatches.length && <button type="button" className="button button--outline show-more" onClick={() => setVisibleLimit((current) => current + PAGE_SIZE)}>Show more matches <ArrowRight size={16} /></button>}</div> : <EmptyState savedOnly={savedOnly} query={query} league={league} isCommunity={isCommunity} onReset={resetFilters} />}
             <Sidebar spotlight={spotlight} onOpen={openAnalysis} onOpenMethod={openMethod} usesSelection={visibleMatches.length > 0 && (league !== 'all' || query.trim() !== '' || savedOnly)} feed={feed} />
           </div>
           <div className="end-of-line"><span>✳</span> THAT'S THE MATCHDAY LINEUP <i /> <button type="button" onClick={() => scrollTo('top')}>BACK TO TOP ↑</button></div>
         </section>
+        <TrackRecord tracker={tracker} />
         <HowItWorks onOpenMethod={openMethod} />
       </main>
       <Footer onOpenMethod={openMethod} isCommunity={isCommunity} />
-      {modal?.type === 'analysis' && <AnalysisDialog fixture={modal.fixture} prediction={hasPredictionData(modal.fixture) ? predictMatch(modal.fixture) : null} onClose={closeModal} isCommunity={isCommunity} />}
+      {modal?.type === 'analysis' && <AnalysisDialog fixture={selectedMatch?.fixture ?? modal.fixture} prediction={selectedMatch ? selectedMatch.prediction : modal.prediction} lockedAt={selectedMatch ? selectedMatch.lockedAt : modal.lockedAt} trackingStatus={trackingStatus} onClose={closeModal} isCommunity={isCommunity} />}
       {modal?.type === 'method' && <MethodDialog onClose={closeModal} isCommunity={isCommunity} report={feed.backtest} source={feed.source} />}
     </>
   )

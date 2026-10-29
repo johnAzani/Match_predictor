@@ -88,6 +88,11 @@ export function teamKey(name) {
     .toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ')
 }
 
+// A league-season home/away pairing has a stable ID even if it is rescheduled.
+export function matchId(season, leagueId, homeName, awayName) {
+  return `community-${season}-${leagueId}-${teamKey(homeName).replace(/ /g, '-')}-${teamKey(awayName).replace(/ /g, '-')}`
+}
+
 function teamIdentity(name) {
   const key = teamKey(name)
   const [shortName, crest] = knownTeams[key] || [name, null]
@@ -106,19 +111,32 @@ function score(value) {
   return Number.isInteger(number) && number >= 0 && number <= 50 ? number : null
 }
 
-export function normalizeCommunityResults(rows) {
-  return uniqueResults(rows.map((row) => ({
+export function normalizeCommunityResults(rows, { keepConflicts = false } = {}) {
+  const results = rows.map((row) => ({
     date: row.date, home: row.home?.trim(), away: row.away?.trim(),
     homeGoals: score(row.ft_home), awayGoals: score(row.ft_away),
-  })).filter(validResult))
+  })).filter(validResult)
+  return keepConflicts ? uniqueExactResults(results) : uniqueResults(results)
 }
 
-export function normalizeHistoricalResults(document) {
+export function normalizeHistoricalResults(document, { keepConflicts = false } = {}) {
   if (!Array.isArray(document?.matches)) throw new Error('Unexpected historical data format')
-  return uniqueResults(document.matches.map((match) => {
+  const results = document.matches.map((match) => {
     const result = Array.isArray(match.score) ? match.score : match.score?.ft
     return { date: match.date, home: match.team1?.trim(), away: match.team2?.trim(), homeGoals: score(result?.[0]), awayGoals: score(result?.[1]) }
-  }).filter(validResult))
+  }).filter(validResult)
+  return keepConflicts ? uniqueExactResults(results) : uniqueResults(results)
+}
+
+// The tracker must see conflicting scores, including conflicts that arise
+// after a result was already scored. Identical duplicated rows are harmless.
+function uniqueExactResults(results) {
+  const unique = new Map()
+  for (const result of results) {
+    const key = `${result.date}|${teamKey(result.home)}|${teamKey(result.away)}|${result.homeGoals}|${result.awayGoals}`
+    if (!unique.has(key)) unique.set(key, result)
+  }
+  return [...unique.values()]
 }
 
 // Conflicting duplicate rows are excluded rather than choosing an arbitrary score.
@@ -264,7 +282,7 @@ export function buildUpcomingFixtures(datasets, now = new Date(), days = WINDOW_
       const hasEnoughData = home.sampleSize >= MIN_GAMES && away.sampleSize >= MIN_GAMES
       matches.push({
         // Stable across reschedules within the same league season.
-        id: `community-${dataset.season}-${league.id}-${teamKey(homeName).replace(/ /g, '-')}-${teamKey(awayName).replace(/ /g, '-')}`,
+        id: matchId(dataset.season, league.id, homeName, awayName),
         league, day: dateLabel(row.date), time: /^([01]\d|2[0-3]):[0-5]\d$/.test(row.time || '') ? row.time : 'TBC',
         date: row.date, kickoffTimestamp: timestamp, home, away, hasEnoughData,
       })

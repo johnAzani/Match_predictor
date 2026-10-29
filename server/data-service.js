@@ -49,15 +49,18 @@ async function loadSnapshot(now, fetchImpl) {
       githubContent(COMMUNITY_REPO, `${base}/fixtures_${season.code}.csv`, fetchImpl),
       githubContent(COMMUNITY_REPO, `${base}/results_${season.code}.csv`, fetchImpl),
     ])
+    const results = readCsv(resultsCsv, ['date', 'home', 'away', 'ft_home', 'ft_away'])
     return {
       league, season: season.label,
       fixtures: readCsv(fixturesCsv, ['date', 'time', 'home', 'away']),
-      results: normalizeCommunityResults(readCsv(resultsCsv, ['date', 'home', 'away', 'ft_home', 'ft_away'])),
+      results: normalizeCommunityResults(results),
+      trackingResults: normalizeCommunityResults(results, { keepConflicts: true }),
     }
   })
   const historyPromises = competitions.map(async (league) => {
     const text = await githubContent(HISTORY_REPO, `${season.previous}/${league.historicalFile}`, fetchImpl)
-    return { league, season: season.previous, results: normalizeHistoricalResults(JSON.parse(text)) }
+    const document = JSON.parse(text)
+    return { league, season: season.previous, results: normalizeHistoricalResults(document), trackingResults: normalizeHistoricalResults(document, { keepConflicts: true }) }
   })
   const summaryPromise = githubContent(COMMUNITY_REPO, 'build_summary.json', fetchImpl).then((text) => JSON.parse(text))
   const [current, historical, summary] = await Promise.all([
@@ -128,5 +131,14 @@ export function createDataService({ fetchImpl = globalThis.fetch, clock = () => 
     return responseFromSnapshot(snapshot, clock(), refreshFailed)
   }
 
-  return { getMatchday }
+  // The scheduled tracker needs the same normalized results, but they are not
+  // sent to visitors as part of the matchday API.
+  async function getTrackingInput() {
+    const feed = await getMatchday()
+    const datasets = [...snapshot.historicalDatasets, ...snapshot.currentDatasets]
+      .map((dataset) => ({ ...dataset, results: dataset.trackingResults }))
+    return { feed, datasets }
+  }
+
+  return { getMatchday, getTrackingInput }
 }

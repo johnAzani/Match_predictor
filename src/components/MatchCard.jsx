@@ -1,7 +1,7 @@
 import { ArrowRight, Bookmark } from 'lucide-react'
 import { CountryFlag, Crest, ProbabilityBar, ProbabilityLabels } from './Shared.jsx'
 
-export default function MatchCard({ fixture, prediction, saved, onToggleSaved, onOpen }) {
+export default function MatchCard({ fixture, prediction, lockedAt, trackingStatus, saved, onToggleSaved, onOpen }) {
   const lean = prediction?.lean
   const pick = !lean ? 'Waiting for more results' : lean.key === 'tie' ? 'No clear lean' : lean.team ? `Model leans ${lean.team.shortName} win` : 'Model leans a draw'
 
@@ -47,6 +47,10 @@ export default function MatchCard({ fixture, prediction, saved, onToggleSaved, o
         {prediction ? <><ProbabilityBar probabilities={prediction.probabilities} /><ProbabilityLabels probabilities={prediction.probabilities} /></> : <p className="missing-prediction">At least three earlier league results are needed for each team.</p>}
       </div>
 
+      {prediction && <p className={`locked-prediction ${lockedAt ? 'is-recorded' : 'locked-prediction--muted'}`}>
+        {lockedAt ? <><span aria-hidden="true">✳ </span>{trackingStatus === 'preview' ? 'PREVIEW FORECAST' : 'RECORDED FOR TRACKING'} · {new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(lockedAt)).toUpperCase()} UTC</> :
+          trackingStatus === 'demo' ? 'SAMPLE ESTIMATE · NOT TRACKED' : trackingStatus === 'loading' ? 'CHECKING TRACKING STATUS' : trackingStatus === 'unavailable' ? 'TRACKING STATUS UNAVAILABLE' : 'CURRENT ESTIMATE · NOT IN ACTIVE TRACKING'}
+      </p>}
       <div className="match-card__bottom">
         <div className="model-lean"><span className="model-lean__dot" /><strong>{pick}</strong></div>
         <button type="button" className="analysis-link" onClick={() => onOpen(fixture)} aria-label={`View analysis for ${fixture.home.name} vs ${fixture.away.name}`}>
