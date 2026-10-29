@@ -634,3 +634,73 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .data-health__grid { grid-template-columns: 1fr; gap: 8px; }
   .data-health__footer { align-items: flex-start; flex-direction: column; }
 }
+
+/* Prospective comparison and probability calibration */
+.performance { margin-top: 14px; padding: 24px; border: 1px solid #384b38; border-radius: 6px; background: #131e17; }
+.performance__heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.performance__kicker { display: flex; align-items: center; gap: 7px; color: #badba6; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.performance__heading h3 { margin: 8px 0 6px; color: #edf2ea; font: 700 27px/.95 'Barlow Condensed', sans-serif; }
+.performance__heading h3 span { color: var(--lime); }
+.performance__heading p, .performance__note, .calibration__intro, .calibration__context, .performance__caveat { margin: 0; color: #b2c2b1; font-size: 10px; line-height: 1.65; }
+.performance__sample { display: inline-flex; align-items: center; flex: none; gap: 7px; padding: 8px 10px; border: 1px solid #405a3c; border-radius: 4px; background: #1b2b1c; color: #d4efc3; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+.performance__comparison { display: grid; grid-template-columns: minmax(0, 2fr) minmax(200px, .8fr); gap: 14px; margin-top: 22px; }
+.performance-comparison, .performance-brier { min-width: 0; padding: 20px; border: 1px solid #334635; border-radius: 4px; background: #101912; }
+.performance__subheading span, .performance-brier > span { color: #aac99b; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.performance__subheading h4 { margin: 6px 0 0; color: #eaf1e7; font: 700 21px/1 'Barlow Condensed', sans-serif; }
+.performance-comparison__cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.performance-comparison__card { min-width: 0; padding: 14px; border: 1px solid #3b5638; border-radius: 4px; background: #18271a; }
+.performance-comparison__card.is-baseline { border-color: #3d4940; background: #18201a; }
+.performance-comparison__card > span { display: block; color: #c5dcb9; font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.performance-comparison__card > strong { display: block; margin-top: 7px; color: #e4f6da; font: 700 37px/.9 'Barlow Condensed', sans-serif; }
+.performance-comparison__card.is-baseline > strong { color: #e0e8df; }
+.performance-comparison__card > small { display: block; margin-top: 6px; color: #b5c6b1; font-size: 10px; line-height: 1.45; }
+.performance-comparison__bar, .calibration-table__bar { display: block; overflow: hidden; height: 4px; border-radius: 4px; background: #354437; }
+.performance-comparison__bar { margin-top: 15px; }
+.performance-comparison__bar > span, .calibration-table__bar > i { display: block; height: 100%; border-radius: inherit; background: var(--lime); }
+.performance-comparison__card.is-baseline .performance-comparison__bar > span { background: #aabda8; }
+.performance__note { margin-top: 13px; }
+.performance-brier { display: flex; flex-direction: column; align-items: flex-start; }
+.performance-brier > strong { margin-top: 14px; color: #eaf2e7; font: 700 43px/.9 'Barlow Condensed', sans-serif; }
+.performance-brier > b { margin-top: 8px; color: #c8e9b7; font-size: 9px; letter-spacing: .04em; }
+.performance-brier p { max-width: 260px; margin: 12px 0 0; color: #b2c2b1; font-size: 10px; line-height: 1.65; }
+.calibration { margin-top: 23px; }
+.calibration__intro { max-width: 820px; margin-top: 9px; }
+.calibration__controls { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+.calibration__controls > span { margin-right: 4px; color: #adbfaa; font-size: 8px; font-weight: 800; letter-spacing: .09em; }
+.calibration__controls button { min-height: 32px; padding: 0 10px; border: 1px solid #405141; border-radius: 4px; background: #141e16; color: #d1ddce; font-size: 10px; font-weight: 700; }
+.calibration__controls button:hover { border-color: #9cbe8b; }
+.calibration__controls button[aria-pressed='true'] { border-color: var(--lime); background: var(--lime); color: #152211; }
+.calibration__context { margin-top: 10px; }
+.calibration-table { width: 100%; margin-top: 13px; border-collapse: collapse; table-layout: fixed; color: #dce9d9; font-size: 11px; }
+.calibration-table th, .calibration-table td { padding: 10px 10px; border-bottom: 1px solid #304034; text-align: left; vertical-align: top; }
+.calibration-table thead th { color: #b7c9b3; font-size: 9px; font-weight: 800; line-height: 1.4; }
+.calibration-table thead th:first-child { width: 27%; }
+.calibration-table thead th:nth-child(2) { width: 17%; }
+.calibration-table tbody th { color: #e4eee0; font-weight: 800; white-space: nowrap; }
+.calibration-table td small { display: block; margin-top: 3px; color: #b2c2b1; font-size: 9px; line-height: 1.4; }
+.calibration-table__bar { max-width: 160px; margin-top: 7px; }
+.calibration-table__bar.is-observed > i { background: #e2b58c; }
+.performance__empty { margin-top: 15px; padding: 17px; border: 1px dashed #425743; border-radius: 4px; background: #101912; }
+.performance__empty strong { color: #cbe9ba; font-size: 9px; letter-spacing: .09em; }
+.performance__empty p { max-width: 600px; margin: 6px 0 0; color: #b2c2b1; font-size: 10px; line-height: 1.6; }
+.performance__caveat { margin-top: 15px; padding-left: 11px; border-left: 2px solid #caa877; color: #dbcbb2; }
+@media (max-width: 700px) {
+  .performance { padding: 20px; }
+  .performance__heading { flex-wrap: wrap; }
+  .performance__comparison { grid-template-columns: 1fr; }
+  .performance-brier { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; }
+  .performance-brier > span, .performance-brier > p { grid-column: 1 / -1; }
+  .performance-brier > strong { margin-top: 10px; }
+  .performance-brier > b { margin-top: 10px; }
+  .performance-brier p { max-width: none; }
+}
+@media (max-width: 380px) {
+  .performance { padding: 17px; }
+  .performance-comparison, .performance-brier { padding: 15px; }
+  .performance-comparison__cards { gap: 8px; }
+  .performance-comparison__card { padding: 11px; }
+  .performance-comparison__card > strong { font-size: 32px; }
+  .calibration-table { font-size: 10px; }
+  .calibration-table th, .calibration-table td { padding: 9px 4px; }
+  .calibration-table thead th { font-size: 8px; }
+}

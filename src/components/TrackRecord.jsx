@@ -3,6 +3,7 @@ import { leagues } from '../data/fixtures.js'
 import { summarizeTracker } from '../lib/tracker.js'
 import ForecastHistory from './ForecastHistory.jsx'
 import DataHealth from './DataHealth.jsx'
+import PerformanceCheck from './PerformanceCheck.jsx'
 
 function shortDate(value) {
   const date = value.length === 10 ? new Date(`${value}T12:00:00Z`) : new Date(value)
@@ -96,6 +97,7 @@ export default function TrackRecord({ tracker }) {
           <div className="track-overview__stat"><strong>{String(summary.pending).padStart(2, '0')}</strong><span>AWAITING<br />RESULTS</span></div>
           <p>{summary.excluded ? `${summary.excluded} match${summary.excluded === 1 ? '' : 'es'} excluded because publication or a result could not be verified. ` : ''}Results update from community data, not in play. Small samples can be misleading.</p>
         </div>
+        <PerformanceCheck tracker={data} />
         <div className="track-panels"><LeaguePerformance summary={summary} /><TimePerformance summary={summary} /></div>
         <RecordRows summary={summary} />
         <ForecastHistory records={data.records} publication={data.publication} />
