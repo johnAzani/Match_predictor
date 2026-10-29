@@ -2,6 +2,7 @@ import { ArrowRight, CalendarClock, Crosshair } from 'lucide-react'
 import { leagues } from '../data/fixtures.js'
 import { summarizeTracker } from '../lib/tracker.js'
 import ForecastHistory from './ForecastHistory.jsx'
+import DataHealth from './DataHealth.jsx'
 
 function shortDate(value) {
   const date = value.length === 10 ? new Date(`${value}T12:00:00Z`) : new Date(value)
@@ -85,6 +86,7 @@ export default function TrackRecord({ tracker }) {
         <div><div className="section-kicker"><span /> THE SCORECARD <i>/</i> 02</div><h2 id="track-title">THE TRACK RECORD<span aria-hidden="true">.</span></h2><p>Predictions recorded before the match, checked against the final score. A forward-looking record, separate from our historical backtest.</p></div>
         {data && <div className="track-heading__meta"><span className="track-heading__dot" /> {data.publication === 'local-preview' ? 'LOCAL PREVIEW · NOT PUBLISHED' : delayed ? 'UPDATES MAY BE DELAYED' : 'FORWARD TEST'}<small>Tracking since {shortDate(data.startedAt)} · Updated {shortDate(data.updatedAt)} UTC</small></div>}
       </div>
+      <DataHealth tracker={tracker} />
       {tracker.status === 'loading' ? <div className="track-unavailable" role="status">Loading the forecast track record…</div> : tracker.status === 'unavailable' ? (
         <div className="track-unavailable" role="status"><div><strong>THE TRACK RECORD ISN’T AVAILABLE YET.</strong><p>The tracking snapshot may not be published yet, or it could not be loaded. Please try again shortly.</p></div><button type="button" className="button button--outline" onClick={tracker.retry} aria-label="Retry loading track record">Try again <ArrowRight size={15} /></button></div>
       ) : <>

@@ -11,8 +11,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -21,6 +19,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      source_health: ${{ steps.source_health.outputs.source_health }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -36,11 +39,20 @@ jobs:
         run: node --use-system-ca scripts/restore-tracker.js
         env:
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
+      - name: Verify history against the latest confirmed backup
+        run: node --use-system-ca scripts/check-published-backup.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
       - name: Generate community data snapshot and update the ledger
         run: npm run snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRACKER_PUBLICATION: github-pages
+      - name: Check community snapshot health
+        id: source_health
+        run: node scripts/assess-snapshot.js
+      # This pre-deployment artifact is only a candidate, not proof it was public.
       - name: Back up the forecast ledger
         uses: actions/upload-artifact@v7
         with:
@@ -61,6 +73,7 @@ jobs:
         run: npm run build
         env:
           VITE_STATIC_FEED: 'true'
+          VITE_GITHUB_REPOSITORY: ${{ github.repository }}
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
@@ -70,7 +83,61 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v5
+
+  backup:
+    # A build artifact alone is not proof of publication. Only copy the exact
+    # ledger after a successful deployment and a matching public-site fetch.
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          name: forecast-ledger
+          path: backup-build
+      - name: Verify the published ledger and save a release backup
+        run: node --use-system-ca scripts/backup-published-ledger.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAGES_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+
+  notify:
+    # This job also runs after failed/skipped dependencies, but not when the
+    # entire workflow is cancelled. Issue write access is isolated here.
+    if: ${{ always() && !cancelled() }}
+    needs: [build, deploy, backup]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Open, update or resolve the refresh alert
+        run: node --use-system-ca scripts/report-refresh-health.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          BACKUP_RESULT: ${{ needs.backup.result }}
+          SOURCE_HEALTH: ${{ needs.build.outputs.source_health }}
