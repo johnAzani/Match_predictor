@@ -1,0 +1,11 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# Generated for GitHub Pages builds, not source data
+/public/data/matchday.json
