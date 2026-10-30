@@ -1,3 +1,5 @@
+import { findOverdueResults, OVERDUE_HOURS } from './overdueResults.js'
+
 const HOUR = 60 * 60 * 1000
 const CLOCK_SKEW = 5 * 60 * 1000
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/
@@ -11,6 +13,7 @@ export function repositoryLinks(repository) {
     api: `https://api.github.com/repos/${path}/actions/workflows/pages.yml/runs?branch=main&per_page=1`,
     backups: `https://github.com/${path}/releases/tag/forecast-ledger-backups`,
     alerts: `https://github.com/${path}/issues?q=is%3Aissue+is%3Aopen+%22Forecast+refresh+or+backup+needs+attention%22`,
+    overdueAlerts: `https://github.com/${path}/issues?q=is%3Aissue+is%3Aopen+%22Overdue+forecast+results+need+attention%22`,
     run: (id) => `https://github.com/${path}/actions/runs/${id}`,
   }
 }
@@ -34,6 +37,27 @@ export function sourceHealth(tracker, now = Date.now()) {
   if (!Number.isFinite(timestamp) || timestamp > now + CLOCK_SKEW) return { state: 'unknown', label: 'Time unknown', detail: 'The source update time is unavailable or in the future.' }
   if (tracker.data.sourceStale || now - timestamp > 48 * HOUR) return { state: 'attention', label: 'Source delayed', detail: 'Community data may be stale; results are not live.' }
   return { state: 'ok', label: 'Recently updated', detail: null }
+}
+
+// The list is a warning based on the last published ledger and this device's
+// clock. It does not establish that a match was played or postponed.
+export function overdueHealth(tracker, now = Date.now()) {
+  const none = { records: [] }
+  if (tracker.status === 'loading') return { ...none, state: 'loading', label: 'Loading', detail: 'Checking pending results.' }
+  if (!tracker.data) return { ...none, state: 'unknown', label: 'Unknown', detail: 'The published history is unavailable.' }
+  if (tracker.data.publication === 'local-preview') return { ...none, state: 'preview', label: 'Local preview', detail: 'Not a check of published forecasts.' }
+  const updated = Date.parse(tracker.data.updatedAt)
+  if (!Number.isFinite(now) || !Number.isFinite(updated) || updated > now + CLOCK_SKEW || !Array.isArray(tracker.data.records)) {
+    return { ...none, state: 'unknown', label: 'Time unknown', detail: 'The ledger or this device’s clock could not be checked.' }
+  }
+  const sourceTime = Date.parse(tracker.data.sourceUpdatedAt)
+  if (Number.isFinite(sourceTime) && sourceTime > now + CLOCK_SKEW) return { ...none, state: 'unknown', label: 'Time unknown', detail: 'The source time or this device’s clock could not be checked.' }
+  const records = findOverdueResults(tracker.data.records, now)
+  if (records.length) return { records, state: 'attention', label: `${records.length} ${records.length === 1 ? 'needs' : 'need'} review`, detail: `Pending for at least ${OVERDUE_HOURS} hours after the last known kick-off. The schedule or source could be delayed.` }
+  if (tracker.loadFailed || now - updated > 36 * HOUR || tracker.data.sourceStale || !Number.isFinite(sourceTime) || now - sourceTime > 48 * HOUR) {
+    return { ...none, state: 'unknown', label: 'None flagged', detail: 'Based on the last saved ledger; the source or history may be delayed.' }
+  }
+  return { ...none, state: 'ok', label: 'None flagged', detail: `No pending record is ${OVERDUE_HOURS} hours past its last known kick-off.` }
 }
 
 export async function loadWorkflowHealth(repository, { fetchImpl = globalThis.fetch, signal } = {}) {
