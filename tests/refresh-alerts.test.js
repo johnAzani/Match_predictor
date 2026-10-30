@@ -3,7 +3,7 @@ import { ALERT_MARKER, ALERT_TITLE, refreshProblems, reportRefreshHealth } from 
 import { assessSnapshot } from '../scripts/lib/snapshot-health.js'
 import { createTracker } from '../src/lib/tracker.js'
 
-const run = { repository: 'owner/repository', runId: '123', attempt: '1', build: 'success', deploy: 'success', backup: 'success', sourceHealth: 'ok' }
+const run = { repository: 'owner/repository', runId: '123', attempt: '1', build: 'success', deploy: 'success', backup: 'success', sourceHealth: 'ok', overdueMonitor: 'success' }
 const botIssue = { number: 7, title: ALERT_TITLE, body: ALERT_MARKER, user: { login: 'github-actions[bot]' } }
 function fakeApi(issues = []) {
   return { list: vi.fn(async () => issues), request: vi.fn(async (path, options) => path === '/issues' && options.method === 'POST' ? { number: 8 } : {}) }
@@ -51,6 +51,15 @@ describe('refresh and backup alerts', () => {
     expect(text).toMatch(/source is stale/)
     expect(text).toMatch(/leagues are unavailable/)
     expect(refreshProblems({ ...run, sourceHealth: '' })).toEqual(['The community snapshot health could not be confirmed.'])
+  })
+
+  it.each(['failure', 'skipped', ''])('surfaces an overdue monitor that did not complete (%s)', async (overdueMonitor) => {
+    const api = fakeApi([botIssue])
+    const result = await reportRefreshHealth({ ...run, api, overdueMonitor })
+    expect(result).toMatchObject({ status: 'updated', issue: 7 })
+    expect(result.problems).toEqual([expect.stringContaining('overdue-result monitor')])
+    expect(api.request.mock.calls.map(([path]) => path)).toEqual(['/issues/7/comments'])
+    expect(refreshProblems({ ...run, backup: 'failure', overdueMonitor })).toEqual(['The confirmed public-ledger backup did not complete successfully.'])
   })
 
   it('closes only the managed bot issue after all jobs and source checks recover', async () => {

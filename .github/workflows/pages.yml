@@ -133,7 +133,25 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
+      # The successful backup job compared this exact artifact with the public
+      # Pages bytes. Never check (or resolve an alert) from an unconfirmed build.
+      - name: Download the confirmed forecast ledger
+        if: ${{ needs.backup.result == 'success' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: forecast-ledger
+          path: overdue-build
+      - name: Check overdue forecast results
+        id: overdue_monitor
+        if: ${{ needs.backup.result == 'success' }}
+        run: node --use-system-ca scripts/report-overdue-results.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BACKUP_RESULT: ${{ needs.backup.result }}
+          PAGES_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+      # Still report refresh problems if downloading or checking the ledger failed.
       - name: Open, update or resolve the refresh alert
+        if: ${{ always() && !cancelled() }}
         run: node --use-system-ca scripts/report-refresh-health.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -141,3 +159,4 @@ jobs:
           DEPLOY_RESULT: ${{ needs.deploy.result }}
           BACKUP_RESULT: ${{ needs.backup.result }}
           SOURCE_HEALTH: ${{ needs.build.outputs.source_health }}
+          OVERDUE_MONITOR_RESULT: ${{ steps.overdue_monitor.outcome }}
