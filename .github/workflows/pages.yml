@@ -160,3 +160,43 @@ jobs:
           BACKUP_RESULT: ${{ needs.backup.result }}
           SOURCE_HEALTH: ${{ needs.build.outputs.source_health }}
           OVERDUE_MONITOR_RESULT: ${{ steps.overdue_monitor.outcome }}
+
+  schedule_heartbeat:
+    name: Scheduled refresh heartbeat
+    # A push, manual run or rerun must not hide a missed schedule. This job
+    # starts only after the original scheduled refresh completed successfully.
+    if: ${{ github.event_name == 'schedule' && github.run_attempt == '1' && needs.build.result == 'success' && needs.deploy.result == 'success' && needs.backup.result == 'success' && needs.notify.result == 'success' }}
+    needs: [build, deploy, backup, notify]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check whether the independent heartbeat is configured
+        id: heartbeat_config
+        env:
+          SCHEDULE_HEALTHCHECK_URL: ${{ secrets.SCHEDULE_HEALTHCHECK_URL }}
+        run: |
+          if [[ -n "$SCHEDULE_HEALTHCHECK_URL" ]]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'Independent schedule heartbeat is not configured.' >> "$GITHUB_STEP_SUMMARY"
+            echo '::notice::Independent schedule heartbeat is not configured.'
+          fi
+      - uses: actions/checkout@v6
+        if: ${{ steps.heartbeat_config.outputs.configured == 'true' }}
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        if: ${{ steps.heartbeat_config.outputs.configured == 'true' }}
+        with:
+          node-version: 22
+      - name: Send the scheduled success heartbeat
+        if: ${{ steps.heartbeat_config.outputs.configured == 'true' }}
+        run: node --use-system-ca scripts/report-scheduled-heartbeat.js
+        env:
+          SCHEDULE_HEALTHCHECK_URL: ${{ secrets.SCHEDULE_HEALTHCHECK_URL }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          DEPLOY_RESULT: ${{ needs.deploy.result }}
+          BACKUP_RESULT: ${{ needs.backup.result }}
+          NOTIFY_RESULT: ${{ needs.notify.result }}

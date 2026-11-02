@@ -5,6 +5,8 @@ coverage/
 .env
 .env.*
 !.env.example
+.dev.vars*
+.wrangler/
 .DS_Store
 
 # Generated for GitHub Pages builds, not source data

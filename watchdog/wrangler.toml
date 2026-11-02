@@ -1,0 +1,11 @@
+name = "pitchside-ledger-watchdog"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# No public Worker URL is needed. The Worker runs once an hour independently
+# of GitHub Actions; add FRESHNESS_HEALTHCHECK_URL as a Cloudflare secret.
+workers_dev = false
+preview_urls = false
+
+[triggers]
+crons = ["43 * * * *"]

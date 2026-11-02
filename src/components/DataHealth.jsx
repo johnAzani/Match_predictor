@@ -64,13 +64,14 @@ export default function DataHealth({ tracker, repository = import.meta.env.VITE_
     </div>
     <OverdueList records={overdue.records} />
     <div className="data-health__footer">
-      <p>{localPreview || !workflow.links ? 'This preview does not run the public refresh or create an automatic backup.' : 'Daily refresh is scheduled for 06:17 UTC. Failures and overdue results open GitHub issues when possible. Public-ledger backups stay on GitHub, not an independent off-site copy.'}</p>
+      <p>{localPreview || !workflow.links ? 'This preview does not run the public refresh or create an automatic backup.' : 'Daily refresh is scheduled for 06:17 UTC. Failures and overdue results open GitHub issues when possible. Public-ledger backups stay on GitHub, not an independent off-site copy. Independent watchdog alerts require separate setup; their status is not checked here.'}</p>
       <div className="data-health__actions">
         {workflow.state === 'unknown' && workflow.links && !localPreview && <button type="button" onClick={workflow.retry}>Retry status <RefreshCw size={13} aria-hidden="true" /></button>}
         {tracker.data && <a href={`${import.meta.env.BASE_URL}data/track-record.json`} download={`pitchside-${localPreview ? 'preview' : 'forecast'}-ledger-${tracker.data.updatedAt.slice(0, 10)}.json`}><Download size={14} aria-hidden="true" /> Download {localPreview ? 'preview' : 'history'}</a>}
         {workflow.links && !localPreview && <a href={workflow.links.backups} target="_blank" rel="noreferrer">GitHub backups <ArrowUpRight size={14} aria-hidden="true" /></a>}
         {workflow.links && !localPreview && <a href={workflow.links.alerts} target="_blank" rel="noreferrer">Refresh alerts <ArrowUpRight size={14} aria-hidden="true" /></a>}
         {workflow.links && !localPreview && <a href={workflow.links.overdueAlerts} target="_blank" rel="noreferrer">Overdue alerts <ArrowUpRight size={14} aria-hidden="true" /></a>}
+        {workflow.links && !localPreview && <a href={workflow.links.watchdogSetup} target="_blank" rel="noreferrer">Watchdog setup <ArrowUpRight size={14} aria-hidden="true" /></a>}
       </div>
     </div>
   </section>
