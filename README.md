@@ -84,7 +84,45 @@ The on-site **Refresh & backups** panel shows the published ledger time, its com
 
 After a successful deployment and backup have confirmed that the exact ledger is public, the workflow opens a separate public **Overdue forecast results need attention** issue if any entries meet the threshold. The alert job rechecks the public bytes before changing an issue, so retrying an older job cannot use an outdated artifact. It normally comments only when the set or latest kick-offs change, avoiding a daily repeat for unchanged entries; a retry after a partial failure may repeat a comment. A later confirmed ledger with no overdue pending entries closes the bot-owned issue; a result, reschedule or exclusion could all remove a flag. A failed build, deployment, backup or overdue check cannot close the existing overdue issue. A ledger more than 36 hours old or a suspect workflow clock makes the check fail rather than resolve an issue. Issue checks happen only on confirmed runs, not precisely at the threshold, and GitHub schedules can be delayed or skipped. The issue links to the on-site list and the workflow; no team names from the feed are copied into issue Markdown.
 
-If the build, deployment, confirmed backup, source-health check or overdue monitor fails, a separate least-privilege job opens or updates a public **Forecast refresh or backup needs attention** issue and links the run. An overdue result by itself does not fail the workflow. A later fully healthy run closes the refresh issue. GitHub email or mobile notifications depend on the owner's GitHub notification/watch settings; no separate email or SMS service is configured. A cancelled workflow, disabled schedule, GitHub/API outage, or failure of the issue job itself may prevent an issue being opened. The site can still warn about an aging ledger when someone visits, but this is **not independent uptime monitoring**.
+If the build, deployment, confirmed backup, source-health check or overdue monitor fails, a separate least-privilege job opens or updates a public **Forecast refresh or backup needs attention** issue and links the run. An overdue result by itself does not fail the workflow. A later fully healthy run closes the refresh issue. GitHub email or mobile notifications depend on the owner's GitHub notification/watch settings; no independent email or SMS service is configured by default. A cancelled workflow, disabled schedule, GitHub/API outage, or failure of the issue job itself may prevent an issue being opened. The site can still warn about an aging ledger when someone visits, but this is **not independent uptime monitoring**.
+
+### Independent watchdog (optional)
+
+The repository includes an **opt-in** watchdog. It is **not active just because this code is deployed**; the owner must set up both services and verify delivery. It has two separate checks, with two different secret ping URLs:
+
+- **Published-ledger freshness:** a Cloudflare Worker independently reads the [public ledger](https://johnazani.github.io/Match_predictor/data/track-record.json) hourly at minute 43 UTC. It sends a Healthchecks.io success ping only if the ledger is reachable, has the valid published schema, has no suspicious future update time and is at most 36 hours old. A Healthchecks simple schedule of **1 hour with 2 hours' grace** alerts after about three hours without a healthy ping, including when the Worker itself stops. The Worker does not check football-source freshness, confirm backup success or verify the truth of scores.
+- **Scheduled refresh:** after the first attempt of an actual `schedule` event, GitHub sends a separate success ping only if build, deployment, verified backup and the notification/overdue-monitor job all succeeded. Pushes, manual refreshes and reruns never send this ping, so they cannot hide a missed schedule. Configure this Healthchecks check for cron **`17 6 * * *`, timezone UTC, with 3 hours' grace**. A sufficiently delayed or failed run can therefore cause an alert even if it later recovers.
+
+A freshness alert may arrive several hours after the ledger first goes stale; this is not immediate uptime monitoring. A very late scheduled event could also arrive after a later due time and make the schedule check look recovered; a rerun cannot. The checks depend on Cloudflare, Healthchecks.io and email delivery as well as the public Pages endpoint. They detect problems; they do not automatically rerun or repair GitHub Actions. If the external ping itself fails, the scheduled-heartbeat job fails visibly even though deployment and backup may already have succeeded. The website links to this guide but **cannot determine whether your private external checks are active**.
+
+**Set up the checks** (requires your own Cloudflare and Healthchecks.io accounts):
+
+1. Create two checks in Healthchecks.io with the settings above. Configure and verify an email notification integration for each. Use the default UUID-based `https://hc-ping.com/...` **success** URL for each check, not a `/start` or `/fail` URL, and keep both URLs private. Do not paste them into an issue, commit, log or chat. Optionally set each check's filtering rule to **Only POST**, but leave content filters off; these pings have no body. A paused or filtered check might acknowledge a ping without changing state, so confirm it is `Up`. The public ledger is read without a GitHub token; no match data is sent in the ping body.
+2. In your GitHub repository, go to **Settings → Secrets and variables → Actions → New repository secret**. Add the schedule check's URL as `SCHEDULE_HEALTHCHECK_URL`. When it is absent, the optional heartbeat job explicitly says it is not configured and does not make an external request. If present but invalid or unreachable, the heartbeat job fails instead of pretending it succeeded.
+3. From a local checkout with Node 22+, check that the Worker name `pitchside-ledger-watchdog` in `watchdog/wrangler.toml` is unused in your Cloudflare account. If it already exists, choose a unique name in that file first: deploying to an existing name can overwrite its Worker. Sign in using Wrangler's own browser flow, deploy the Worker, then add the freshness check's URL as a **Cloudflare Worker secret**. Enter the URL directly into Wrangler's prompt, not in chat or on the command line:
+
+   ```sh
+   npx wrangler@4.156.0 login
+   npx wrangler@4.156.0 deploy --config watchdog/wrangler.toml
+   npx wrangler@4.156.0 secret put FRESHNESS_HEALTHCHECK_URL --config watchdog/wrangler.toml
+   ```
+
+   The Worker has no HTTP handler; its configuration declares no custom routes and disables its `workers.dev` and Version URLs. It does not require a GitHub credential and reads the fixed Pages URL in `watchdog/ledger-health.js`. Change that URL if deploying a fork. Cron configuration changes can take time to propagate. The Worker logs fixed reason codes, not ping URLs or ledger contents. A bundling-only check without deployment is `npx wrangler@4.156.0 deploy --dry-run --config watchdog/wrangler.toml`.
+4. **Arm and test both checks.** Healthchecks.io checks start as `New` and cannot detect a missed ping until they have received an initial success. Wait for the freshness check to turn `Up` after the Worker runs. The schedule check stays `New` until a successful scheduled run, unless you initialize it manually once. A one-time manual initialization is **not evidence of a successful scheduled run**; confirm that its next due time is 06:17 UTC. In a private local Bash shell, with shell tracing off, you can initialize it without putting the URL in command history:
+
+   ```bash
+   read -r -s -p 'Schedule check success URL (hidden): ' SCHEDULE_PING; printf '\n'
+   if RESPONSE=$(printf 'url = "%s"\n' "$SCHEDULE_PING" | curl --config - --fail --silent --show-error --max-time 10 --proto '=https' --request POST) && [ "$RESPONSE" = 'OK' ]; then
+     printf 'Ping accepted. Confirm the check is Up in Healthchecks.io.\n'
+   else
+     printf 'Ping not confirmed. Check the URL and dashboard.\n' >&2
+   fi
+   unset SCHEDULE_PING RESPONSE
+   ```
+
+   Check that notifications reach the intended inbox. Test expiry and recovery with a **disposable** check rather than falsifying the real schedule's history. Check Cloudflare logs and Actions job summaries if either check remains `New`; do not assume an alert is active until it is armed and delivery has been tested.
+
+[Healthchecks.io pricing](https://healthchecks.io/pricing/) and [Cloudflare Workers limits](https://developers.cloudflare.com/workers/platform/limits/) can change. Free tiers may suffice for these two checks and one hourly Worker, depending on account usage; monitor quota and billing. The Worker validates the full ledger, which grows over time; exceeding a Worker CPU or memory limit stops its ping and can raise an alert even if the public ledger is valid. Do not commit `.dev.vars`, `.env` or `.wrangler` credentials.
 
 ### Backups and recovery
 

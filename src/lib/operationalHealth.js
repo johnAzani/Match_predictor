@@ -14,6 +14,7 @@ export function repositoryLinks(repository) {
     backups: `https://github.com/${path}/releases/tag/forecast-ledger-backups`,
     alerts: `https://github.com/${path}/issues?q=is%3Aissue+is%3Aopen+%22Forecast+refresh+or+backup+needs+attention%22`,
     overdueAlerts: `https://github.com/${path}/issues?q=is%3Aissue+is%3Aopen+%22Overdue+forecast+results+need+attention%22`,
+    watchdogSetup: `https://github.com/${path}#independent-watchdog-optional`,
     run: (id) => `https://github.com/${path}/actions/runs/${id}`,
   }
 }
