@@ -20,14 +20,16 @@ export function useMatchdayFeed() {
     const controller = new AbortController()
     setFeed((current) => current.status === 'loading' ? loading : { ...current, refreshing: true })
     async function load() {
-      const useData = (data) => {
-        if (!controller.signal.aborted) setFeed({ status: 'community', fixtures: data.fixtures, source: data.source, backtest: data.backtest ?? null })
+      const useData = (data, refreshing = false) => {
+        if (!controller.signal.aborted) setFeed({ status: 'community', fixtures: data.fixtures, source: data.source, backtest: data.backtest ?? null, refreshing })
       }
       try {
         let data
         if (import.meta.env.VITE_STATIC_FEED === 'true') {
           const { loadStaticMatchday } = await import('./staticMatchdayFeed.js')
-          data = await loadStaticMatchday({ signal: controller.signal, onCached: useData })
+          // Cached data remains visible while the bundled/newer feed is checked,
+          // but daily selections wait for that check to finish.
+          data = await loadStaticMatchday({ signal: controller.signal, onCached: (cached) => useData(cached, true) })
         } else {
           const response = await fetch('/api/matchday', { signal: controller.signal })
           if (!response.ok) throw new Error('Feed unavailable')

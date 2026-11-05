@@ -1,0 +1,39 @@
+name: Check replacement data provider
+
+# Deliberately opt in by adding this label to a pull request from this same
+# repository. A label event (rather than every push) limits quota use. This
+# read-only check does not deploy, update the forecast ledger, or save data.
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+permissions:
+  contents: read
+
+concurrency:
+  group: replacement-provider-preflight
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    if: ${{ github.event.label.name == 'run-provider-preflight' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Check provider response formats and coverage
+        run: node --use-system-ca scripts/probe-five-dollar.js
+        env:
+          FIVE_DOLLAR_API_KEY: ${{ secrets.FIVE_DOLLAR_API_KEY }}
+      - name: Summarize limits
+        if: ${{ always() }}
+        run: |
+          echo 'Read-only, aggregate-count probe only. No deployment or ledger change was made.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A passing probe does not establish data freshness, accuracy, migration compatibility, or publication rights.' >> "$GITHUB_STEP_SUMMARY"

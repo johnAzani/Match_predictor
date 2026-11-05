@@ -15,6 +15,7 @@ export function useTrackRecord() {
 
   useEffect(() => {
     const controller = new AbortController()
+    setState((current) => current.status === 'loading' ? current : { ...current, refreshing: true })
     let active = true
     let timedOut = false
     const timeout = window.setTimeout(() => { timedOut = true; controller.abort() }, 15_000)
@@ -27,7 +28,7 @@ export function useTrackRecord() {
         if (active && !timedOut) setState({ status: 'ready', data, loadFailed: false })
       } catch (error) {
         if (active && (timedOut || error.name !== 'AbortError')) {
-          setState((current) => current.data ? { ...current, loadFailed: true } : { status: 'unavailable', data: null, loadFailed: true })
+          setState((current) => current.data ? { ...current, loadFailed: true, refreshing: false } : { status: 'unavailable', data: null, loadFailed: true, refreshing: false })
         }
       } finally {
         window.clearTimeout(timeout)

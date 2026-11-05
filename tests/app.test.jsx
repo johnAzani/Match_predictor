@@ -4,6 +4,20 @@ import userEvent from '@testing-library/user-event'
 import App from '../src/App.jsx'
 
 describe('matchday dashboard', () => {
+  it('integrates the daily journal and calculator without treating demo fixtures as picks', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: 'Daily pick' })).toHaveAttribute('href', '#daily-pick')
+    const section = screen.getByRole('region', { name: 'ONE PICK. YOUR CALL.' })
+    expect(await within(section).findByText('A PICK ISN’T AVAILABLE.')).toBeInTheDocument()
+    expect(window.localStorage.getItem('pitchside-daily-picks-v1')).toBeNull()
+    await user.type(within(section).getByLabelText('Stake (₦)'), '100')
+    await user.type(within(section).getByLabelText('Decimal odds'), '1.30')
+    expect(within(section).getByText('₦130.00')).toBeInTheDocument()
+    expect(within(section).getByText('+₦30.00')).toBeInTheDocument()
+    expect(within(section).queryByRole('button', { name: /I placed this single/i })).not.toBeInTheDocument()
+  })
+
   it('filters by league, supports accent-insensitive search, and resets an empty result', async () => {
     const user = userEvent.setup()
     render(<App />)

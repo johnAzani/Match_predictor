@@ -9,6 +9,7 @@ import { useMatchdayFeed } from './lib/useMatchdayFeed.js'
 import { useTrackRecord } from './lib/useTrackRecord.js'
 import { frozenPrediction } from './lib/tracker.js'
 import TrackRecord from './components/TrackRecord.jsx'
+import DailyPicks from './components/DailyPicks.jsx'
 import { Brand, Crest, TextLink } from './components/Shared.jsx'
 import MatchCard from './components/MatchCard.jsx'
 import { AnalysisDialog, MethodDialog } from './components/Dialogs.jsx'
@@ -48,6 +49,7 @@ function Header({ savedCount, savedOnly, onToggleSavedView, onOpenMethod, feed }
         <Brand />
         <nav id="main-navigation" className={`main-nav${menuOpen ? ' is-open' : ''}`} aria-label="Main navigation">
           <a className="main-nav__active" href="#predictions" onClick={closeMenu}>Predictions</a>
+          <a href="#daily-pick" onClick={closeMenu}>Daily pick</a>
           <a href="#leagues" onClick={closeMenu}>Leagues</a>
           <a href="#track-record" onClick={closeMenu}>Track record</a>
           <button type="button" onClick={() => { closeMenu(); onOpenMethod() }}>How it works</button>
@@ -195,8 +197,8 @@ function Footer({ onOpenMethod, isCommunity }) {
     <footer className="site-footer">
       <div className="footer-inner page-shell">
         <div><Brand footer /><p>For the love of football and a little more insight.</p></div>
-        <div className="footer-note"><span>MADE FOR THE FANS. BUILT FOR THE GAME.</span><p>{isCommunity ? <>Data: <a href="https://github.com/oladeeayo/open-matchday" target="_blank" rel="noreferrer">open-matchday</a> and <a href="https://github.com/openfootball/football.json" target="_blank" rel="noreferrer">openfootball</a>. Community data is for non-commercial use; provider terms apply. Predictions are not betting advice.</> : 'Demo fixtures and statistics are illustrative. Predictions are not guarantees or betting advice.'}</p></div>
-        <div className="footer-links"><a href="#predictions">Predictions</a><a href="#track-record">Track record</a><button type="button" onClick={onOpenMethod}>How it works</button><a href="#top">Back to top ↑</a></div>
+        <div className="footer-note"><span>MADE FOR THE FANS. BUILT FOR THE GAME.</span><p>{isCommunity ? <>Data: <a href="https://github.com/oladeeayo/open-matchday" target="_blank" rel="noreferrer">open-matchday</a> and <a href="https://github.com/openfootball/football.json" target="_blank" rel="noreferrer">openfootball</a>. Community sources include FixtureDownload, OpenLigaDB, ESPN and football-data.co.uk (© Joseph Buchdahl). Non-commercial use; provider terms apply. Predictions are not betting advice.</> : 'Demo fixtures and statistics are illustrative. Predictions are not guarantees or betting advice.'}</p></div>
+        <div className="footer-links"><a href="#daily-pick">Daily pick</a><a href="#predictions">Predictions</a><a href="#track-record">Track record</a><button type="button" onClick={onOpenMethod}>How it works</button><a href="#top">Back to top ↑</a></div>
       </div>
       <div className="footer-bottom page-shell"><span>© PITCHSIDE — THE MATCHDAY EDIT</span><span>THE BEAUTIFUL GAME, IN NUMBERS <span>✳</span></span></div>
     </footer>
@@ -277,6 +279,7 @@ export default function App() {
       <Header savedCount={savedCount} savedOnly={savedOnly} onToggleSavedView={toggleSavedView} onOpenMethod={openMethod} feed={feed} />
       <main className="page-shell">
         <Hero onOpenMethod={openMethod} feed={feed} />
+        <DailyPicks feed={feed} tracker={tracker} />
         <section className="predictions-section" id="predictions" aria-labelledby="predictions-title">
           <div className="section-heading">
             <div><div className="section-kicker"><span /> THE MATCH CENTRE <i>/</i> 01</div><h2 id="predictions-title">THE MATCHDAY LINEUP<span aria-hidden="true">.</span></h2><p>{isCommunity ? 'Upcoming community fixtures and the numbers behind each match.' : 'Good games. Better insight. Here’s what the numbers say.'}</p></div>
