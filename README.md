@@ -176,6 +176,8 @@ Switching future fixtures would not settle the rights question for old source-de
 
 Resolution fails closed: an unmapped club is dropped and reported, never matched by similarity, and an alias pointing outside the roster resolves to nothing. Only `finished` rows with `status_code: full` become results; `in_play`, `unknown` and stale `scheduled` rows become neither results nor fixtures. Kick-offs convert from UTC to the fixed UTC+1 the site displays.
 
+`scripts/migration-report.js`, or the label-triggered `provider-migration-report.yml`, compares the *published* ledger with what the replacement provider would supply and posts four numbers: forecasts the new source would resolve, forecasts stranded past kick-off with no result, scored forecasts it confirms or contradicts, and new forecasts it would add. A contradicting score is a hard blocker, because publishing it would rewrite an already-scored result; a scored forecast missing from the provider's rolling window is reported separately and is not treated as a retraction.
+
 The adapter is **not wired into the live site**: `createDataService` still reads the community feed, and the tracker still refuses any other source name. `npm run audit:teams`, or the label-triggered `provider-audit.yml`, runs it against the real provider and reports per competition how many results and fixtures it would produce, how many clubs it saw, and the exact provider names it could not map — no scores, odds or raw rows. The report is posted as a pull-request comment. A clean audit only proves name mapping, not accuracy, freshness or publication rights.
 
 ## Assets

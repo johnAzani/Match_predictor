@@ -1,0 +1,64 @@
+name: Dry-run the source migration
+
+# Opt in by adding this label to a pull request from this same repository.
+# The run downloads the *published* forecast ledger, compares it with what the
+# replacement provider would supply, and posts totals only. It never writes the
+# site, the ledger or its backups, and never deploys.
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: replacement-provider-migration-report
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    if: ${{ github.event.label.name == 'run-migration-report' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Download the published forecast ledger
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            https://johnazani.github.io/Match_predictor/data/track-record.json \
+            --output published-ledger.json
+          node -e "const l=require('./published-ledger.json'); console.log('Ledger records:', l.records.length, 'updated', l.updatedAt)"
+      - name: Compare the published record with the replacement provider
+        run: |
+          set -o pipefail
+          node --use-system-ca scripts/migration-report.js | tee migration-report.md
+        env:
+          FIVE_DOLLAR_API_KEY: ${{ secrets.FIVE_DOLLAR_API_KEY }}
+          LEDGER_PATH: published-ledger.json
+      - name: Post the dry run on the pull request
+        if: ${{ always() && hashFiles('migration-report.md') != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### Source-migration dry run'
+            echo
+            echo '```'
+            cat migration-report.md
+            echo '```'
+          } > migration-comment.md
+          gh pr comment "$PR" --body-file migration-comment.md
+      - name: Summarize limits
+        if: ${{ always() }}
+        run: |
+          echo 'Read-only dry run. No deployment, ledger change or commit was made.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Matching forecasts is not a licence, accuracy or freshness check.' >> "$GITHUB_STEP_SUMMARY"
