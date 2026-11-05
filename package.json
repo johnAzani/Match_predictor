@@ -10,7 +10,8 @@
     "test": "vitest run",
     "start": "node --use-system-ca server/index.js --production",
     "snapshot": "node --use-system-ca scripts/generate-static-feed.js",
-    "verify-backup": "node scripts/verify-ledger-backup.js"
+    "verify-backup": "node scripts/verify-ledger-backup.js",
+    "audit:teams": "node --use-system-ca scripts/audit-five-dollar.js"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",

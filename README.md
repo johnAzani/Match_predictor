@@ -166,6 +166,18 @@ The `.github/workflows/provider-preflight.yml` is an **opt-in, read-only check**
 
 Switching future fixtures would not settle the rights question for old source-derived forecasts already in the public ledger and Release backups. The live-prediction model only needs each team's last ten results, so a three-month window is enough for new forecasts; the historical backtest stays on the CC0 openfootball files and does not depend on the new provider. Those records must not be silently dropped or rewritten. The current tracker intentionally refuses a feed whose source name is not `open-matchday`: this guard is not a licence check, but prevents a simple source substitution from silently changing the historical record. A real migration must explicitly handle changed team and fixture identities, review ambiguous or unmatched pending forecasts, preserve frozen predictions and publication checks, and avoid treating results outside a provider's rolling history window as retracted. It must also replace the Pages browser fallback, preserve backup/restore continuity, and verify the new provider's actual data and permissions before deployment.
 
+### Migration preparation
+
+`server/providers/five-dollar.js` is a read-only adapter, tested offline against synthetic provider payloads. It is designed to keep one identity space so the ledger survives a source change:
+
+- league ids stay this site's ids, never the provider's numeric ones;
+- season labels reuse the shared `seasonFor` helper, so `matchId(season, league, home, away)` is unchanged;
+- provider club names resolve through `server/providers/team-aliases.js` onto the frozen roster in `server/providers/community-teams.js`, which holds the exact community spellings already baked into published forecasts.
+
+Resolution fails closed: an unmapped club is dropped and reported, never matched by similarity, and an alias pointing outside the roster resolves to nothing. Only `finished` rows with `status_code: full` become results; `in_play`, `unknown` and stale `scheduled` rows become neither results nor fixtures. Kick-offs convert from UTC to the fixed UTC+1 the site displays.
+
+The adapter is **not wired into the live site**: `createDataService` still reads the community feed, and the tracker still refuses any other source name. `npm run audit:teams`, or the label-triggered `provider-audit.yml`, runs it against the real provider and reports per competition how many results and fixtures it would produce, how many clubs it saw, and the exact provider names it could not map — no scores, odds or raw rows. The report is posted as a pull-request comment. A clean audit only proves name mapping, not accuracy, freshness or publication rights.
+
 ## Assets
 
 - Club crests are included for illustrative identification, sourced from the [football-logos collection](https://github.com/JoseArroyave/football-logos). Club names and marks belong to their respective owners; check rights before commercial use.

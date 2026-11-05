@@ -1,20 +1,16 @@
 import { parse } from 'csv-parse/browser/esm/sync'
+import { seasonFor } from './season.js'
 import { backtest, buildUpcomingFixtures, competitions, normalizeCommunityResults, normalizeHistoricalResults, WINDOW_DAYS } from './football.js'
 
 const COMMUNITY_REPO = 'oladeeayo/open-matchday'
 const HISTORY_REPO = 'openfootball/football.json'
 const COMMUNITY_URL = 'https://github.com/oladeeayo/open-matchday'
 const HISTORY_URL = 'https://github.com/openfootball/football.json'
+export { seasonFor }
+
 const CACHE_MS = 30 * 60 * 1000
 const FAILURE_RETRY_MS = 60 * 1000
 const STALE_AFTER_MS = 48 * 60 * 60 * 1000
-
-export function seasonFor(date) {
-  const year = date.getUTCFullYear()
-  const start = date.getUTCMonth() >= 6 ? year : year - 1
-  const end = start + 1
-  return { label: `${start}-${String(end).slice(-2)}`, code: `${String(start).slice(-2)}${String(end).slice(-2)}`, previous: `${start - 1}-${String(start).slice(-2)}` }
-}
 
 function readCsv(text, required) {
   const rows = parse(text, { bom: true, skip_empty_lines: true, relax_column_count: true })
