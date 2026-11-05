@@ -15,7 +15,7 @@ const fixture = (overrides = {}) => ({
   kickoffTimestamp: Date.parse('2026-10-30T17:30:00Z'), home, away, hasEnoughData: true, ...overrides,
 })
 const input = (now, fixtures = [fixture()], results = [], extraSource = {}) => ({
-  feed: { mode: 'community', fixtures, source: { season, stale: false, sourceUpdatedAt: new Date(now.getTime() - hour).toISOString(), ...extraSource } },
+  feed: { mode: 'community', fixtures, source: { name: 'open-matchday', season, stale: false, sourceUpdatedAt: new Date(now.getTime() - hour).toISOString(), ...extraSource } },
   datasets: [{ season, league, results }],
 })
 const result = (date, homeGoals = 2, awayGoals = 0) => ({ date, home: 'Alpha', away: 'Beta', homeGoals, awayGoals })
@@ -55,6 +55,19 @@ describe('prospective forecast ledger', () => {
     const next = updateTracker(null, input(firstRun, [fixture()], [result('2026-10-28')]), firstRun)
     expect(next.records).toHaveLength(0)
     expect(() => updateTracker(null, { ...input(firstRun), feed: { mode: 'demo', fixtures: [], source: {} } }, firstRun)).toThrow('Community')
+  })
+
+  it('fails closed on a different or unidentified source before changing the old ledger', () => {
+    const initial = updateTracker(null, input(firstRun), firstRun)
+    const later = new Date('2026-10-31T10:00:00Z')
+    const scored = updateTracker(initial, input(later, [], [result('2026-10-30')]), later)
+    const before = structuredClone(scored)
+    for (const name of ['another-provider', undefined, '']) {
+      expect(() => updateTracker(scored, input(later, [], [], { name }), later)).toThrow('explicit history migration')
+      expect(scored).toEqual(before)
+    }
+    expect(summarizeTracker(scored)).toMatchObject({ evaluated: 1, correct: 1, excluded: 0 })
+    expect(() => updateTracker(null, input(firstRun, [fixture()], [], { name: 'another-provider' }), firstRun)).toThrow('explicit history migration')
   })
 
   it('settles later final scores and summarizes accuracy by league and month', () => {

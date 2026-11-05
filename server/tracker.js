@@ -53,6 +53,11 @@ export function updateTracker(previous, { feed, datasets }, now = new Date(), pu
   if (previous && now.getTime() < Date.parse(previous.updatedAt)) throw new Error('Tracker clock cannot move backwards')
   if (publication === 'github-pages' && previous && previous.publication !== 'github-pages') throw new Error('A local preview cannot become the published track record')
   if (!feed || feed.mode !== 'community' || !Array.isArray(feed.fixtures) || !feed.source || !Array.isArray(datasets)) throw new Error('Community tracking data is unavailable')
+  // The existing ledger and result matching use open-matchday's team names.
+  // A different source needs an explicit, audited migration: otherwise name
+  // changes or limited history can silently exclude results or duplicate
+  // forecasts. This is a safety gate, not a data-licence determination.
+  if (feed.source.name !== 'open-matchday') throw new Error('Forecast source change requires an explicit history migration')
   const state = previous || createTracker(now, publication)
   const timestamp = now.toISOString()
   const today = timestamp.slice(0, 10)
