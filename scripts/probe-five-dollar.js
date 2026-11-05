@@ -17,6 +17,12 @@ if (!process.env.FIVE_DOLLAR_API_KEY?.trim()) {
     for (const league of report.leagues) {
       console.log(`${league.league}: ${league.finished} finished, ${league.scheduled} future scheduled, ${league.unknown} unknown (${league.pages} pages).`)
     }
+    // Aggregate counts as a notice annotation, so the result stays visible even
+    // where workflow logs need a signed-in session.
+    const counts = report.leagues
+      .map((league) => `${league.league}: ${league.finished} finished / ${league.scheduled} scheduled / ${league.unknown} unknown`)
+      .join('; ')
+    console.log(`::notice::Provider check passed (${report.requests} requests, ${report.historyDays}d back/ ${report.futureDays}d ahead). ${counts}`)
     console.log('Football data by 5DollarFootballAPI: https://5dollarfootballapi.com/')
     console.log('Counts are not proof of freshness, accuracy, history-migration compatibility or publication rights. No site data was changed.')
   } catch (error) {
