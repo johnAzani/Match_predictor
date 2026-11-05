@@ -219,3 +219,26 @@ describe('loading four competitions', () => {
     }
   })
 })
+
+describe('alias table hygiene', () => {
+  it('uses normalised keys, so an apostrophe never breaks a lookup', () => {
+    for (const key of Object.keys(TEAM_ALIASES)) {
+      expect(key).toBe(key.toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim())
+    }
+  })
+
+  it('resolves every audited provider spelling onto a roster club', () => {
+    const audited = {
+      'premier-league': ['Tottenham', 'Manchester City', 'Manchester United', 'Nottingham Forest'],
+      'la-liga': ['Barcelona', 'Atletico Madrid', 'CD Alaves', 'Celta Vigo', 'Deportivo A Coruna',
+        'Elche', 'Espanyol', 'Getafe', 'Levante', 'Malaga', 'Osasuna', 'Racing Santander', 'Sevilla', 'Valencia', 'Villarreal'],
+      bundesliga: ['Augsburg', 'Bayer Leverkusen', 'Bayern Munich', "Borussia M'gladbach", 'Cologne',
+        'Elversberg', 'Hamburg', 'Mainz', 'Paderborn', 'Schalke', 'Union Berlin'],
+      'serie-a': ['AC Milan', 'Inter', 'Roma'],
+    }
+    for (const [competition, names] of Object.entries(audited)) {
+      const { resolve } = createTeamResolver(competition)
+      for (const name of names) expect(resolve(name), `${competition}: ${name}`).toBeTruthy()
+    }
+  })
+})

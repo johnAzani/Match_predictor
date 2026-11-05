@@ -17,6 +17,7 @@
 import { competitions, teamKey } from '../football.js'
 import { seasonFor } from '../season.js'
 import { COMMUNITY_TEAMS } from './community-teams.js'
+import { TEAM_ALIASES } from './team-aliases.js'
 
 export const PROVIDER_ORIGIN = 'https://api.5dollarfootballapi.com'
 export const HISTORY_DAYS = 90 // Free plan: three months of results.
@@ -56,7 +57,7 @@ function validGoals(value) {
 
 // Builds a resolver for one league. The canonical spelling always comes from
 // the frozen roster, never from the alias table or the provider.
-export function createTeamResolver(competition, { aliases = undefined, keyOf = teamKey } = {}) {
+export function createTeamResolver(competition, { aliases = TEAM_ALIASES, keyOf = teamKey } = {}) {
   const names = COMMUNITY_TEAMS[competition]
   if (!Array.isArray(names) || !names.length) throw new ProviderDataError(`No team roster for ${competition}`)
   const byKey = new Map()
