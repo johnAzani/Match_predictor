@@ -10,6 +10,10 @@ try {
   console.log('Counts are not proof of freshness, accuracy, history-migration compatibility or publication rights. No site data was changed.')
 } catch (error) {
   // Never log a provider response, an arbitrary exception, the key or headers.
-  console.error(`Replacement-source check failed: ${error instanceof ProviderProbeError ? error.message : 'unexpected error.'}`)
+  // The same sanitized message is exposed as a workflow annotation so the
+  // outcome is visible without downloading logs.
+  const message = `Replacement-source check failed: ${error instanceof ProviderProbeError ? error.message : 'unexpected error.'}`
+  console.error(message)
+  console.log(`::error::${message}`)
   process.exitCode = 1
 }
