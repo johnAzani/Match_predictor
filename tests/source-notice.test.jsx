@@ -27,7 +27,7 @@ describe('source notice', () => {
       feed={feed({ name: 'five-dollar-football', attribution: { text: 'Football data by 5DollarFootballAPI', url: 'https://5dollarfootballapi.com/' } })}
       onOpenMethod={() => {}}
     />)
-    expect(screen.getByText('LIVE FEED DATA')).toBeInTheDocument()
+    expect(screen.getByText('PARTNER FEED')).toBeInTheDocument()
     const credit = screen.getByRole('link', { name: 'Football data by 5DollarFootballAPI' })
     expect(credit).toHaveAttribute('href', 'https://5dollarfootballapi.com/')
     expect(screen.queryByText('COMMUNITY DATA · NON-COMMERCIAL')).not.toBeInTheDocument()

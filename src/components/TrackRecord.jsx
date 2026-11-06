@@ -95,7 +95,7 @@ export default function TrackRecord({ tracker }) {
           <div className="track-overview__hero"><span>RECORDED PICKS CORRECT</span><strong>{summary.accuracy === null ? '—' : `${(summary.accuracy * 100).toFixed(1)}%`}</strong><small>{summary.evaluated ? `${summary.correct} correct out of ${summary.evaluated} scored` : 'No matches scored yet'}</small></div>
           <div className="track-overview__stat"><strong>{String(summary.evaluated).padStart(2, '0')}</strong><span>MATCHES<br />SCORED</span></div>
           <div className="track-overview__stat"><strong>{String(summary.pending).padStart(2, '0')}</strong><span>AWAITING<br />RESULTS</span></div>
-          <p>{summary.excluded ? `${summary.excluded} match${summary.excluded === 1 ? '' : 'es'} excluded because publication or a result could not be verified. ` : ''}Results update from community data, not in play. Small samples can be misleading.</p>
+          <p>{summary.excluded ? `${summary.excluded} match${summary.excluded === 1 ? '' : 'es'} excluded because publication or a result could not be verified. ` : ''}Results update from the data feed, not in play. Small samples can be misleading.</p>
         </div>
         <PerformanceCheck tracker={data} />
         <div className="track-panels"><LeaguePerformance summary={summary} /><TimePerformance summary={summary} /></div>
