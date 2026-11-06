@@ -42,7 +42,7 @@ function formatUpdate(iso) {
 function Header({ savedCount, savedOnly, onToggleSavedView, onOpenMethod, feed }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
-  const feedLabel = feed.status === 'loading' ? 'LOADING DATA' : feed.status === 'demo' ? 'DEMO MODE' : feed.source.stale ? 'DATA DELAYED' : 'COMMUNITY DATA'
+  const feedLabel = feed.status === 'loading' ? 'LOADING DATA' : feed.status === 'demo' ? 'DEMO MODE' : feed.source.stale ? 'DATA DELAYED' : feed.source.attribution ? 'LIVE FEED DATA' : 'COMMUNITY DATA'
   return (
     <header className="site-header" id="top">
       <div className="header-inner page-shell">
@@ -69,14 +69,20 @@ function Header({ savedCount, savedOnly, onToggleSavedView, onOpenMethod, feed }
   )
 }
 
-function SourceNotice({ feed, onOpenMethod }) {
+export function SourceNotice({ feed, onOpenMethod }) {
   if (feed.status === 'loading') return <div className="demo-notice" role="status"><div><span className="demo-notice__icon">i</span><strong>LOADING COMMUNITY DATA</strong><span className="demo-notice__divider" /><span>Getting the latest available fixtures and results.</span></div></div>
   if (feed.status === 'demo') return <div className="demo-notice" role="status"><div><span className="demo-notice__icon">i</span><strong>DEMO MODE</strong><span className="demo-notice__divider" /><span>Community data is unavailable. Showing illustrative sample matches.</span></div><button type="button" className="text-link notice-retry" onClick={feed.retry} disabled={feed.refreshing}>{feed.refreshing ? 'Retrying…' : 'Try again'} <ArrowUpRight size={15} /></button></div>
   const update = formatUpdate(feed.source.sourceUpdatedAt)
   const unavailable = feed.source.unavailableLeagues?.length ? ` · Unavailable: ${feed.source.unavailableLeagues.join(', ')}` : ''
+  // A licensed feed's terms require a linked credit wherever its data appears;
+  // the community feed does not, so the line only renders when it is supplied.
+  const attribution = feed.source.attribution
+  const sourceLabel = feed.source.stale
+    ? (attribution ? 'DATA MAY BE STALE' : 'DATA MAY BE STALE · NON-COMMERCIAL')
+    : (attribution ? 'LIVE FEED DATA' : 'COMMUNITY DATA · NON-COMMERCIAL')
   return (
     <div className="demo-notice" role="status">
-      <div><span className="demo-notice__icon">i</span><strong>{feed.source.stale ? 'DATA MAY BE STALE · NON-COMMERCIAL' : 'COMMUNITY DATA · NON-COMMERCIAL'}</strong><span className="demo-notice__divider" /><span>{update ? `Source updated ${update}` : 'Update time unavailable'} · Daily, not live · Times approx. UTC+1{unavailable}</span></div>
+      <div><span className="demo-notice__icon">i</span><strong>{sourceLabel}</strong><span className="demo-notice__divider" /><span>{update ? `Source updated ${update}` : 'Update time unavailable'} · Daily, not live · Times approx. UTC+1{unavailable}{attribution ? <> · <a className="notice-credit" href={attribution.url} rel="noreferrer">{attribution.text}</a></> : null}</span></div>
       {feed.source.refreshFailed ? <button type="button" className="text-link notice-retry" onClick={feed.retry} disabled={feed.refreshing}>{feed.refreshing ? 'Retrying…' : 'Retry feed'} <ArrowUpRight size={15} /></button> : <button type="button" className="text-link" onClick={onOpenMethod}>About the data <ArrowUpRight size={15} /></button>}
     </div>
   )
