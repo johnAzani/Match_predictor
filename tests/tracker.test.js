@@ -63,11 +63,16 @@ describe('prospective forecast ledger', () => {
     const scored = updateTracker(initial, input(later, [], [result('2026-10-30')]), later)
     const before = structuredClone(scored)
     for (const name of ['another-provider', undefined, '']) {
-      expect(() => updateTracker(scored, input(later, [], [], { name }), later)).toThrow('explicit history migration')
+      expect(() => updateTracker(scored, input(later, [], [], { name }), later)).toThrow(/refusing to extend the ledger/i)
       expect(scored).toEqual(before)
     }
+    // A source the code knows about but the ledger is not approved for is a
+    // migration, not a typo: it must say so and still change nothing.
+    expect(() => updateTracker(scored, input(later, [], [], { name: 'five-dollar-football' }), later))
+      .toThrow('explicit history migration')
+    expect(scored).toEqual(before)
     expect(summarizeTracker(scored)).toMatchObject({ evaluated: 1, correct: 1, excluded: 0 })
-    expect(() => updateTracker(null, input(firstRun, [fixture()], [], { name: 'another-provider' }), firstRun)).toThrow('explicit history migration')
+    expect(() => updateTracker(null, input(firstRun, [fixture()], [], { name: 'another-provider' }), firstRun)).toThrow(/refusing to extend the ledger/i)
   })
 
   it('settles later final scores and summarizes accuracy by league and month', () => {

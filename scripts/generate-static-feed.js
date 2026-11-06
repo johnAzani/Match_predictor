@@ -30,7 +30,14 @@ try {
   if (publication === 'github-pages' && process.env.TRACKER_RESTORED !== '1') throw new Error('Published tracking history must be restored before building')
   let previous = null
   try { previous = JSON.parse(await readFile(trackerPath, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
-  const input = await createDataService({ fetchImpl }).getTrackingInput()
+  // The replacement feed stays opt-in by environment until an explicit
+  // migration flips the ledger's approved source. Without a key it refuses to
+  // start rather than silently falling back to the other provider.
+  const provider = process.env.MATCHDAY_SOURCE === 'five-dollar'
+    ? { apiKey: process.env.FIVE_DOLLAR_API_KEY ?? '' }
+    : null
+  if (provider && !provider.apiKey.trim()) throw new Error('MATCHDAY_SOURCE=five-dollar needs FIVE_DOLLAR_API_KEY')
+  const input = await createDataService({ fetchImpl, provider }).getTrackingInput()
   const tracker = updateTracker(previous, input, new Date(), publication)
   assertLedgerContinuity(previous, tracker)
   // The next Pages build must expect a verified release backup. Local preview
