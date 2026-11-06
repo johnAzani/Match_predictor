@@ -119,22 +119,24 @@ describe('provider-backed data service', () => {
 })
 
 describe('tracker with the provider feed', () => {
-  it('refuses a provider feed while the ledger is still approved for the old source', async () => {
+  it('is the approved source, so a provider feed may extend the ledger', async () => {
     const service = createDataService({ fetchImpl: fakeFetch(), clock: () => NOW, provider: { apiKey: KEY } })
     const input = await service.getTrackingInput()
     expect(input.feed.source.name).toBe(PROVIDER_SOURCE_NAME)
-    expect(APPROVED_FEED_SOURCE).toBe('open-matchday')
-    expect(() => updateTracker(null, input, NOW, 'github-pages')).toThrow(/explicit history migration/i)
-  })
-
-  it('records forecasts once the ledger is explicitly migrated', async () => {
-    const service = createDataService({ fetchImpl: fakeFetch(), clock: () => NOW, provider: { apiKey: KEY } })
-    const input = await service.getTrackingInput()
-    const tracker = updateTracker(null, input, NOW, 'local-preview', { approvedSource: PROVIDER_SOURCE_NAME })
+    expect(APPROVED_FEED_SOURCE).toBe(PROVIDER_SOURCE_NAME)
+    const tracker = updateTracker(null, input, NOW, 'local-preview')
     // Fixtures are one day out, outside the 2-48h capture window, so the ledger
     // stays empty but valid rather than inventing a forecast.
     expect(tracker.records).toHaveLength(0)
     expect(tracker.publication).toBe('local-preview')
+  })
+
+  it('refuses the old community feed now that the ledger has migrated', async () => {
+    const service = createDataService({ fetchImpl: fakeFetch(), clock: () => NOW, provider: { apiKey: KEY } })
+    const input = await service.getTrackingInput()
+    const legacy = { ...input, feed: { ...input.feed, source: { ...input.feed.source, name: 'open-matchday' } } }
+    expect(() => updateTracker(null, legacy, NOW, 'github-pages')).toThrow(/explicit history migration/i)
+    expect(() => updateTracker(null, legacy, NOW, 'github-pages', { approvedSource: 'open-matchday' })).not.toThrow()
   })
 
   it('rejects an unknown source name outright', async () => {

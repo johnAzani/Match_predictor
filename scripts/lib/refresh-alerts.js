@@ -3,8 +3,8 @@ import { validRepository } from './github-api.js'
 export const ALERT_MARKER = '<!-- pitchside-refresh-monitor:v1 -->'
 export const ALERT_TITLE = 'Forecast refresh or backup needs attention'
 const SOURCE_MESSAGES = {
-  'source-stale': 'The community source is stale or its update time is unknown.',
-  'leagues-unavailable': 'One or more leagues are unavailable in the community snapshot.',
+  'source-stale': 'The data source is stale or its update time is unknown.',
+  'leagues-unavailable': 'One or more leagues are unavailable in the snapshot.',
   'source-mismatch': 'The tracker and fixture snapshot disagree about the source update time.',
 }
 
@@ -17,7 +17,7 @@ export function refreshProblems({ build, deploy, backup, sourceHealth, overdueMo
   if (build === 'success' && sourceHealth !== 'ok') {
     const codes = typeof sourceHealth === 'string' ? sourceHealth.split(',') : []
     const messages = [...new Set(codes.map((code) => SOURCE_MESSAGES[code]).filter(Boolean))]
-    problems.push(...(messages.length ? messages : ['The community snapshot health could not be confirmed.']))
+    problems.push(...(messages.length ? messages : ['The snapshot health could not be confirmed.']))
   }
   return problems
 }

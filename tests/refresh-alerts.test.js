@@ -50,7 +50,7 @@ describe('refresh and backup alerts', () => {
     expect(text).toMatch(/backup did not complete/)
     expect(text).toMatch(/source is stale/)
     expect(text).toMatch(/leagues are unavailable/)
-    expect(refreshProblems({ ...run, sourceHealth: '' })).toEqual(['The community snapshot health could not be confirmed.'])
+    expect(refreshProblems({ ...run, sourceHealth: '' })).toEqual(['The snapshot health could not be confirmed.'])
   })
 
   it.each(['failure', 'skipped', ''])('surfaces an overdue monitor that did not complete (%s)', async (overdueMonitor) => {

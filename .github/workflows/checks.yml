@@ -20,10 +20,15 @@ jobs:
       - run: npm ci
       - run: npm test
       # This is a local preview ledger only; it is never deployed or restored
-      # into the public record.
-      - run: npm run snapshot
+      # into the public record. It runs the same provider path as Pages, so it
+      # needs the Actions secret: same-repository branches only, never forks.
+      - name: Preview the published data pipeline
+        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: npm run snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MATCHDAY_SOURCE: five-dollar
+          FIVE_DOLLAR_API_KEY: ${{ secrets.FIVE_DOLLAR_API_KEY }}
       - name: Set the GitHub Pages base path
         shell: bash
         run: |

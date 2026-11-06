@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../src/App.jsx'
+import { APPROVED_FEED_SOURCE } from '../server/ledger-source.js'
 
 describe('matchday dashboard', () => {
   it('integrates the daily journal and calculator without treating demo fixtures as picks', async () => {
@@ -117,7 +118,7 @@ function communityResponse(matches) {
     ok: true,
     json: async () => ({
       mode: 'community', fixtures: matches,
-      source: { name: 'open-matchday', sourceUpdatedAt: '2026-10-29T05:08:17Z', stale: false, unavailableLeagues: [], availableLeagueCount: 4, historicalLeagueCount: 3 },
+      source: { name: APPROVED_FEED_SOURCE, sourceUpdatedAt: '2026-10-29T05:08:17Z', stale: false, unavailableLeagues: [], availableLeagueCount: 4, historicalLeagueCount: 3 },
       backtest: { evaluated: 100, completed: 120, skipped: 20, accuracy: 0.5, baselineAccuracy: 0.43, brier: 0.61, logLoss: 1.02, firstDate: '2025-09-01', lastDate: '2026-10-28' },
     }),
   }

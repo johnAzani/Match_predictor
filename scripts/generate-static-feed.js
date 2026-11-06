@@ -5,6 +5,7 @@ import { createDataService } from '../server/data-service.js'
 import { updateTracker } from '../server/tracker.js'
 import { TRACKER_VERSION } from '../src/lib/tracker.js'
 import { assertLedgerContinuity } from './lib/ledger-integrity.js'
+import { APPROVED_FEED_SOURCE } from '../server/ledger-source.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const destination = resolve(root, 'public/data/matchday.json')
@@ -30,13 +31,12 @@ try {
   if (publication === 'github-pages' && process.env.TRACKER_RESTORED !== '1') throw new Error('Published tracking history must be restored before building')
   let previous = null
   try { previous = JSON.parse(await readFile(trackerPath, 'utf8')) } catch (error) { if (error.code !== 'ENOENT') throw error }
-  // The replacement feed stays opt-in by environment until an explicit
-  // migration flips the ledger's approved source. Without a key it refuses to
-  // start rather than silently falling back to the other provider.
-  const provider = process.env.MATCHDAY_SOURCE === 'five-dollar'
-    ? { apiKey: process.env.FIVE_DOLLAR_API_KEY ?? '' }
-    : null
-  if (provider && !provider.apiKey.trim()) throw new Error('MATCHDAY_SOURCE=five-dollar needs FIVE_DOLLAR_API_KEY')
+  // The feed follows the ledger's approved source by default, so a build can
+  // never quietly record forecasts from a provider the ledger is not approved
+  // for. MATCHDAY_SOURCE only exists to reproduce the previous feed locally.
+  const mode = process.env.MATCHDAY_SOURCE ?? (APPROVED_FEED_SOURCE === 'five-dollar-football' ? 'five-dollar' : 'community')
+  const provider = mode === 'five-dollar' ? { apiKey: process.env.FIVE_DOLLAR_API_KEY ?? '' } : null
+  if (provider && !provider.apiKey.trim()) throw new Error('The five-dollar feed needs FIVE_DOLLAR_API_KEY as a server-side secret')
   const input = await createDataService({ fetchImpl, provider }).getTrackingInput()
   const tracker = updateTracker(previous, input, new Date(), publication)
   assertLedgerContinuity(previous, tracker)
