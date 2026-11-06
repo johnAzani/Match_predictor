@@ -42,7 +42,7 @@ function formatUpdate(iso) {
 function Header({ savedCount, savedOnly, onToggleSavedView, onOpenMethod, feed }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = () => setMenuOpen(false)
-  const feedLabel = feed.status === 'loading' ? 'LOADING DATA' : feed.status === 'demo' ? 'DEMO MODE' : feed.source.stale ? 'DATA DELAYED' : feed.source.attribution ? 'LIVE FEED DATA' : 'COMMUNITY DATA'
+  const feedLabel = feed.status === 'loading' ? 'LOADING DATA' : feed.status === 'demo' ? 'DEMO MODE' : feed.source.stale ? 'DATA DELAYED' : feed.source.attribution ? 'PARTNER FEED' : 'COMMUNITY DATA'
   return (
     <header className="site-header" id="top">
       <div className="header-inner page-shell">
@@ -79,7 +79,7 @@ export function SourceNotice({ feed, onOpenMethod }) {
   const attribution = feed.source.attribution
   const sourceLabel = feed.source.stale
     ? (attribution ? 'DATA MAY BE STALE' : 'DATA MAY BE STALE · NON-COMMERCIAL')
-    : (attribution ? 'LIVE FEED DATA' : 'COMMUNITY DATA · NON-COMMERCIAL')
+    : (attribution ? 'PARTNER FEED' : 'COMMUNITY DATA · NON-COMMERCIAL')
   return (
     <div className="demo-notice" role="status">
       <div><span className="demo-notice__icon">i</span><strong>{sourceLabel}</strong><span className="demo-notice__divider" /><span>{update ? `Source updated ${update}` : 'Update time unavailable'} · Daily, not live · Times approx. UTC+1{unavailable}{attribution ? <> · <a className="notice-credit" href={attribution.url} rel="noreferrer">{attribution.text}</a></> : null}</span></div>
@@ -181,7 +181,7 @@ function EmptyState({ savedOnly, query, league, isCommunity, onReset }) {
     <div className="empty-state">
       <span className="empty-state__icon">{savedOnly ? <Bookmark size={23} /> : <Search size={23} />}</span>
       <h3>{savedOnly && !query ? 'NO SAVED MATCHES HERE YET.' : noScheduled ? 'NO UPCOMING MATCHES.' : 'NO MATCHES FOUND.'}</h3>
-      <p>{savedOnly && !query ? 'Save a match with the bookmark icon. Saved matches appear here while they are in the current fixture window.' : noScheduled ? 'The community feed has no matches in the next 14 days. Check back after the next update.' : 'Try another team or reset your filters to see the full matchday.'}</p>
+      <p>{savedOnly && !query ? 'Save a match with the bookmark icon. Saved matches appear here while they are in the current fixture window.' : noScheduled ? 'The data feed has no matches in the next 14 days. Check back after the next update.' : 'Try another team or reset your filters to see the full matchday.'}</p>
       {!noScheduled && <button type="button" className="button button--outline" onClick={onReset}>View all matches <ArrowRight size={16} /></button>}
     </div>
   )
@@ -288,7 +288,7 @@ export default function App() {
         <DailyPicks feed={feed} tracker={tracker} />
         <section className="predictions-section" id="predictions" aria-labelledby="predictions-title">
           <div className="section-heading">
-            <div><div className="section-kicker"><span /> THE MATCH CENTRE <i>/</i> 01</div><h2 id="predictions-title">THE MATCHDAY LINEUP<span aria-hidden="true">.</span></h2><p>{isCommunity ? 'Upcoming community fixtures and the numbers behind each match.' : 'Good games. Better insight. Here’s what the numbers say.'}</p></div>
+            <div><div className="section-kicker"><span /> THE MATCH CENTRE <i>/</i> 01</div><h2 id="predictions-title">THE MATCHDAY LINEUP<span aria-hidden="true">.</span></h2><p>{isCommunity ? 'Upcoming fixtures and the numbers behind each match.' : 'Good games. Better insight. Here’s what the numbers say.'}</p></div>
             <div className="matchday-counts"><div><strong>{feed.status === 'loading' ? '—' : String(feed.fixtures.length).padStart(2, '0')}</strong><span>{isCommunity ? <>NEXT 14<br />DAYS</> : <>DEMO<br />MATCHES</>}</span></div><i /><div><strong>{isCommunity ? String(feed.source.availableLeagueCount).padStart(2, '0') : '04'}</strong><span>TOP<br />LEAGUES</span></div></div>
           </div>
           <FixtureFilters league={league} setLeague={setLeague} query={query} setQuery={setQuery} fixtureCount={feed.fixtures.length} onAllMatches={() => { setLeague('all'); setSavedOnly(false) }} />

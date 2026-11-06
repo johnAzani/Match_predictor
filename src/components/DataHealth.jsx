@@ -53,12 +53,12 @@ export default function DataHealth({ tracker, repository = import.meta.env.VITE_
 
   return <section className="data-health" aria-labelledby="data-health-title">
     <div className="data-health__heading">
-      <div><div className="data-health__kicker"><Activity size={15} aria-hidden="true" /> DATA HEALTH</div><h3 id="data-health-title">REFRESH & BACKUPS</h3><p>See when the history and community source were last updated, whether the latest automated run completed, and which results may be overdue.</p></div>
+      <div><div className="data-health__kicker"><Activity size={15} aria-hidden="true" /> DATA HEALTH</div><h3 id="data-health-title">REFRESH & BACKUPS</h3><p>See when the history and data source were last updated, whether the latest automated run completed, and which results may be overdue.</p></div>
       {workflow.links && !localPreview && <a href={workflow.runUrl || workflow.links.runs} target="_blank" rel="noreferrer">View workflow <ArrowUpRight size={14} aria-hidden="true" /></a>}
     </div>
     <div className="data-health__grid">
       <HealthItem title="PUBLISHED HISTORY" health={history} timestamp={published && timeLabel(tracker.data.updatedAt) ? `Updated ${timeLabel(tracker.data.updatedAt)}` : null} />
-      <HealthItem title="COMMUNITY SOURCE" health={source} timestamp={published && timeLabel(tracker.data.sourceUpdatedAt) ? `Source updated ${timeLabel(tracker.data.sourceUpdatedAt)}` : null} />
+      <HealthItem title="DATA SOURCE" health={source} timestamp={published && timeLabel(tracker.data.sourceUpdatedAt) ? `Source updated ${timeLabel(tracker.data.sourceUpdatedAt)}` : null} />
       <HealthItem title="REFRESH & BACKUP RUN" health={workflow} timestamp={workflow.startedAt && timeLabel(workflow.startedAt) ? `Started ${timeLabel(workflow.startedAt)}` : null} live />
       <HealthItem title="OVERDUE RESULTS" health={overdue} live />
     </div>
