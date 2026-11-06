@@ -3,8 +3,18 @@ import { Gauge, FlaskConical } from 'lucide-react'
 import { PROMOTION_Z, REVIEW_MIN_SAMPLE, reviewModel } from '../lib/modelReview.js'
 
 const percent = (value) => (value === null || value === undefined ? '—' : `${(value * 100).toFixed(1)}%`)
-const signed = (value) => `${value > 0 ? '+' : ''}${value.toFixed(3)}`
 const count = (value) => value.toLocaleString()
+
+// Say which way the model leans, in words, instead of printing a bare sign.
+function biasDetail(bias) {
+  if (bias.bias === null) return 'No scored picks yet'
+  const points = Math.abs(bias.bias * 100).toFixed(1)
+  if (bias.state === 'overconfident') return `${points} pts above reality`
+  if (bias.state === 'underconfident') return `${points} pts below reality`
+  return `${points} pts — inside noise`
+}
+
+const CALIBRATION_LABELS = Object.freeze({ calibrated: 'CALIBRATED', overconfident: 'OVERCONFIDENT', underconfident: 'UNDERCONFIDENT' })
 
 const VERDICT_LABELS = Object.freeze({
   candidate: 'TRIAL EARNED',
@@ -60,7 +70,7 @@ export default function ModelReview({ tracker }) {
             <div><span>PICKS CORRECT</span><strong>{percent(champion.accuracy)}</strong><small>{count(champion.correct)} of {count(evidence)} scored</small></div>
             <div><span>BRIER SCORE</span><strong>{champion.brier.toFixed(3)}</strong><small>0 perfect · 2 worst</small></div>
             <div><span>LOG LOSS</span><strong>{champion.logLoss.toFixed(3)}</strong><small>Punishes confident misses</small></div>
-            <div><span>CALIBRATION</span><strong>{bias.state === 'calibrated' ? 'HONEST' : bias.state === 'overconfident' ? 'OVERCONFIDENT' : bias.state === 'underconfident' ? 'UNDERCONFIDENT' : '—'}</strong><small>{bias.bias === null ? '—' : `${signed(bias.bias * 100)} pts vs reality`}</small></div>
+            <div><span>CALIBRATION</span><strong>{CALIBRATION_LABELS[bias.state] ?? '—'}</strong><small>{biasDetail(bias)}</small></div>
           </div>
 
           <div className="model-review__grid">
@@ -75,7 +85,7 @@ export default function ModelReview({ tracker }) {
                   <MarketRow label="+1" note="Refund if they lose by one" market={markets.handicap} />
                 </tbody>
               </table>
-              <p className="model-review__note">Draw picks have no side to defend, so {count(markets.doubleChance.skipped)} of them are left out of +0.5 and +1. A push returns the stake and is excluded from the hit rate rather than counted as a win.</p>
+              <p className="model-review__note">{markets.doubleChance.skipped > 0 ? `Draw picks have no side to defend, so ${count(markets.doubleChance.skipped)} of them are left out of +0.5 and +1. ` : ''}A push returns the stake and is excluded from the hit rate rather than counted as a win.</p>
             </div>
 
             <div className="model-review__panel">
