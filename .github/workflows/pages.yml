@@ -44,11 +44,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAGES_BASE_URL: ${{ steps.pages.outputs.base_url }}
-      - name: Generate community data snapshot and update the ledger
+      - name: Generate the matchday snapshot and update the ledger
         run: npm run snapshot
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TRACKER_PUBLICATION: github-pages
+          # Scoped to this one step: the key never reaches the build, deploy,
+          # backup or any browser bundle.
+          MATCHDAY_SOURCE: five-dollar
+          FIVE_DOLLAR_API_KEY: ${{ secrets.FIVE_DOLLAR_API_KEY }}
       - name: Check community snapshot health
         id: source_health
         run: node scripts/assess-snapshot.js

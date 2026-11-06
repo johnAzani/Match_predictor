@@ -70,6 +70,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero__edition i { margin-top: 7px; color: #b9c8b5; font-size: 8px; font-style: normal; font-weight: 800; letter-spacing: .1em; }
 .hero__bottom-note { position: absolute; right: 32px; bottom: 22px; color: #e2eee0; font-size: 8px; font-weight: 800; letter-spacing: .13em; text-shadow: 0 1px 8px #07100b; }
 .hero__bottom-note span { margin-right: 5px; color: var(--lime); font-size: 14px; vertical-align: -1px; }
+.notice-credit {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.notice-credit:hover { color: var(--lime); }
+
 .demo-notice { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #263129; color: #8d9c8f; font-size: 10px; }
 .demo-notice > div { display: flex; align-items: center; gap: 10px; }
 .demo-notice strong { color: #c2d3bd; font-size: 9px; font-weight: 800; letter-spacing: .08em; white-space: nowrap; }

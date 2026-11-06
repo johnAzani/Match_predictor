@@ -1,6 +1,7 @@
 import { hasPredictionData, predictMatch } from '../src/lib/predictions.js'
 import { createTracker, isValidTracker, MODEL_VERSION } from '../src/lib/tracker.js'
 import { matchId } from './football.js'
+import { APPROVED_FEED_SOURCE, KNOWN_FEED_SOURCES } from './ledger-source.js'
 
 const HOUR = 60 * 60 * 1000
 export const FORECAST_WINDOW_HOURS = 48
@@ -46,18 +47,20 @@ function capturedPrediction(fixture) {
 
 // Once captured, the forecast and original kick-off are immutable. Only the
 // latest schedule and observed result may change. No past forecasts are made up.
-export function updateTracker(previous, { feed, datasets }, now = new Date(), publication = 'local-preview') {
+export function updateTracker(previous, { feed, datasets }, now = new Date(), publication = 'local-preview', { approvedSource = APPROVED_FEED_SOURCE } = {}) {
   if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error('Invalid tracker clock')
   if (!['github-pages', 'local-preview'].includes(publication)) throw new Error('Invalid tracker publication mode')
   if (previous && !isValidTracker(previous)) throw new Error('Invalid forecast ledger; refusing to reset it')
   if (previous && now.getTime() < Date.parse(previous.updatedAt)) throw new Error('Tracker clock cannot move backwards')
   if (publication === 'github-pages' && previous && previous.publication !== 'github-pages') throw new Error('A local preview cannot become the published track record')
   if (!feed || feed.mode !== 'community' || !Array.isArray(feed.fixtures) || !feed.source || !Array.isArray(datasets)) throw new Error('Community tracking data is unavailable')
-  // The existing ledger and result matching use open-matchday's team names.
-  // A different source needs an explicit, audited migration: otherwise name
-  // changes or limited history can silently exclude results or duplicate
+  // Team identity and result matching follow the source's club names. Only the
+  // one approved source may extend the ledger, and switching it is a deliberate
+  // change to `APPROVED_FEED_SOURCE`, never an environment toggle: otherwise a
+  // name or history change could silently exclude results or duplicate
   // forecasts. This is a safety gate, not a data-licence determination.
-  if (feed.source.name !== 'open-matchday') throw new Error('Forecast source change requires an explicit history migration')
+  if (!KNOWN_FEED_SOURCES.includes(feed.source.name)) throw new Error('Unknown forecast source; refusing to extend the ledger')
+  if (feed.source.name !== approvedSource) throw new Error('Forecast source change requires an explicit history migration')
   const state = previous || createTracker(now, publication)
   const timestamp = now.toISOString()
   const today = timestamp.slice(0, 10)

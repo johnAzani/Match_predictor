@@ -166,6 +166,24 @@ The `.github/workflows/provider-preflight.yml` is an **opt-in, read-only check**
 
 Switching future fixtures would not settle the rights question for old source-derived forecasts already in the public ledger and Release backups. The live-prediction model only needs each team's last ten results, so a three-month window is enough for new forecasts; the historical backtest stays on the CC0 openfootball files and does not depend on the new provider. Those records must not be silently dropped or rewritten. The current tracker intentionally refuses a feed whose source name is not `open-matchday`: this guard is not a licence check, but prevents a simple source substitution from silently changing the historical record. A real migration must explicitly handle changed team and fixture identities, review ambiguous or unmatched pending forecasts, preserve frozen predictions and publication checks, and avoid treating results outside a provider's rolling history window as retracted. It must also replace the Pages browser fallback, preserve backup/restore continuity, and verify the new provider's actual data and permissions before deployment.
 
+### Migration preparation
+
+`server/providers/five-dollar.js` is a read-only adapter, tested offline against synthetic provider payloads. It is designed to keep one identity space so the ledger survives a source change:
+
+- league ids stay this site's ids, never the provider's numeric ones;
+- season labels reuse the shared `seasonFor` helper, so `matchId(season, league, home, away)` is unchanged;
+- provider club names resolve through `server/providers/team-aliases.js` onto the frozen roster in `server/providers/community-teams.js`, which holds the exact community spellings already baked into published forecasts.
+
+Resolution fails closed: an unmapped club is dropped and reported, never matched by similarity, and an alias pointing outside the roster resolves to nothing. Only `finished` rows with `status_code: full` become results; `in_play`, `unknown` and stale `scheduled` rows become neither results nor fixtures. Kick-offs convert from UTC to the fixed UTC+1 the site displays.
+
+`scripts/migration-report.js`, or the label-triggered `provider-migration-report.yml`, compares the *published* ledger with what the replacement provider would supply and posts four numbers: forecasts the new source would resolve, forecasts stranded past kick-off with no result, scored forecasts it confirms or contradicts, and new forecasts it would add. A contradicting score is a hard blocker, because publishing it would rewrite an already-scored result; a scored forecast missing from the provider's rolling window is reported separately and is not treated as a retraction.
+
+The adapter is wired in **behind an opt-in flag**: `createDataService({ provider })` reads it when the static feed is built with `MATCHDAY_SOURCE=five-dollar` and `FIVE_DOLLAR_API_KEY`; without the flag the community loader runs exactly as before. `npm run audit:teams`, or the label-triggered `provider-audit.yml`, reports per competition how many results and fixtures it would produce, how many clubs it saw, and the exact provider names it could not map — no scores, odds or raw rows. A clean audit only proves name mapping.
+
+The ledger accepts exactly one source. `server/ledger-source.js` holds `APPROVED_FEED_SOURCE`, and `updateTracker` rejects any other source name — including a known one — with "requires an explicit history migration". **On 5 November 2026 it was switched from `open-matchday` to `five-dollar-football`** after the dry run confirmed all 39 previously scored forecasts agree, none were stranded, and every provider club mapped onto the frozen roster. Existing records were not rewritten: they keep their original identities, predictions and results.
+
+The snapshot build follows the approved source automatically, so a build cannot record forecasts from a provider the ledger is not approved for. It needs `FIVE_DOLLAR_API_KEY`, supplied only to the step that fetches data. Without the key the build fails closed instead of quietly using another source; `MATCHDAY_SOURCE=community` exists only to reproduce the previous feed locally. Freshness also fails closed: a provider snapshot with no upcoming fixture in any covered competition is published as stale rather than fresh. The site shows the linked credit "Football data by 5DollarFootballAPI" whenever that feed is in use.
+
 ## Assets
 
 - Club crests are included for illustrative identification, sourced from the [football-logos collection](https://github.com/JoseArroyave/football-logos). Club names and marks belong to their respective owners; check rights before commercial use.

@@ -1,0 +1,57 @@
+name: Audit replacement provider mapping
+
+# Opt in by adding this label to a pull request from this same repository. The
+# audit is read-only: it makes a handful of provider requests, prints aggregate
+# counts plus any unmapped club names, and never deploys, writes the ledger or
+# commits anything.
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - labeled
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: replacement-provider-audit
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    if: ${{ github.event.label.name == 'run-provider-audit' && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Map provider clubs onto the frozen roster
+        run: |
+          set -o pipefail
+          node --use-system-ca scripts/audit-five-dollar.js | tee audit-report.md
+        env:
+          FIVE_DOLLAR_API_KEY: ${{ secrets.FIVE_DOLLAR_API_KEY }}
+      - name: Post the mapping report on the pull request
+        if: ${{ always() && hashFiles('audit-report.md') != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          {
+            echo '### Replacement-provider mapping audit'
+            echo
+            echo '```'
+            cat audit-report.md
+            echo '```'
+          } > audit-comment.md
+          gh pr comment "$PR" --body-file audit-comment.md
+      - name: Summarize limits
+        if: ${{ always() }}
+        run: |
+          echo 'Read-only audit. No deployment, ledger change or commit was made.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'A clean audit does not establish data accuracy, freshness, migration safety or publication rights.' >> "$GITHUB_STEP_SUMMARY"

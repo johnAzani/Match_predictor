@@ -1,3 +1,4 @@
+import { APPROVED_FEED_SOURCE } from '../../server/ledger-source.js'
 import { competitions, matchId } from '../../server/football.js'
 import { updateTracker } from '../../server/tracker.js'
 
@@ -17,7 +18,7 @@ export function fixture({ homeName = 'Alpha', awayName = 'Beta', homeGoals = 2.2
 
 export function input(now, fixtures = [fixture()], results = [], sourceOverrides = {}) {
   return {
-    feed: { mode: 'community', fixtures, source: { name: 'open-matchday', season, stale: false, sourceUpdatedAt: new Date(now.getTime() - HOUR).toISOString(), fetchedAt: now.toISOString(), unavailableLeagues: [], ...sourceOverrides } },
+    feed: { mode: 'community', fixtures, source: { name: APPROVED_FEED_SOURCE, season, stale: false, sourceUpdatedAt: new Date(now.getTime() - HOUR).toISOString(), fetchedAt: now.toISOString(), unavailableLeagues: [], ...sourceOverrides } },
     datasets: [{ season, league, results }],
   }
 }

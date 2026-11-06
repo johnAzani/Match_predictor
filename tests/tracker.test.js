@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { competitions, matchId } from '../server/football.js'
 import { updateTracker } from '../server/tracker.js'
+import { APPROVED_FEED_SOURCE, KNOWN_FEED_SOURCES } from '../server/ledger-source.js'
 import { isValidTracker, summarizeTracker } from '../src/lib/tracker.js'
 import { restorePublishedTracker } from '../scripts/tracker-restore.js'
 
@@ -15,7 +16,7 @@ const fixture = (overrides = {}) => ({
   kickoffTimestamp: Date.parse('2026-10-30T17:30:00Z'), home, away, hasEnoughData: true, ...overrides,
 })
 const input = (now, fixtures = [fixture()], results = [], extraSource = {}) => ({
-  feed: { mode: 'community', fixtures, source: { name: 'open-matchday', season, stale: false, sourceUpdatedAt: new Date(now.getTime() - hour).toISOString(), ...extraSource } },
+  feed: { mode: 'community', fixtures, source: { name: APPROVED_FEED_SOURCE, season, stale: false, sourceUpdatedAt: new Date(now.getTime() - hour).toISOString(), ...extraSource } },
   datasets: [{ season, league, results }],
 })
 const result = (date, homeGoals = 2, awayGoals = 0) => ({ date, home: 'Alpha', away: 'Beta', homeGoals, awayGoals })
@@ -63,11 +64,17 @@ describe('prospective forecast ledger', () => {
     const scored = updateTracker(initial, input(later, [], [result('2026-10-30')]), later)
     const before = structuredClone(scored)
     for (const name of ['another-provider', undefined, '']) {
-      expect(() => updateTracker(scored, input(later, [], [], { name }), later)).toThrow('explicit history migration')
+      expect(() => updateTracker(scored, input(later, [], [], { name }), later)).toThrow(/refusing to extend the ledger/i)
       expect(scored).toEqual(before)
     }
+    // A source the code knows about but the ledger is not approved for is a
+    // migration, not a typo: it must say so and still change nothing.
+    const otherKnown = KNOWN_FEED_SOURCES.find((name) => name !== APPROVED_FEED_SOURCE)
+    expect(() => updateTracker(scored, input(later, [], [], { name: otherKnown }), later))
+      .toThrow('explicit history migration')
+    expect(scored).toEqual(before)
     expect(summarizeTracker(scored)).toMatchObject({ evaluated: 1, correct: 1, excluded: 0 })
-    expect(() => updateTracker(null, input(firstRun, [fixture()], [], { name: 'another-provider' }), firstRun)).toThrow('explicit history migration')
+    expect(() => updateTracker(null, input(firstRun, [fixture()], [], { name: 'another-provider' }), firstRun)).toThrow(/refusing to extend the ledger/i)
   })
 
   it('settles later final scores and summarizes accuracy by league and month', () => {
