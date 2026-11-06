@@ -68,6 +68,14 @@ describe('model review panel', () => {
     expect(screen.getByText(/Promotion needs 100\+ scored picks/)).toBeInTheDocument()
   })
 
+  it('describes the calibration in words rather than a bare sign', () => {
+    render(<ModelReview tracker={ledger(scored)} />)
+    // Two of three picks landed while the model claimed 60%: under, not over.
+    expect(screen.getByText('CALIBRATED')).toBeInTheDocument()
+    expect(screen.getByText(/pts — inside noise/)).toBeInTheDocument()
+    expect(screen.queryByText('HONEST')).not.toBeInTheDocument()
+  })
+
   it('never reviews unpublished forecasts', () => {
     render(<ModelReview tracker={ledger(scored, 'local-preview')} />)
     expect(screen.getByText('PUBLISHED RESULTS ONLY')).toBeInTheDocument()
