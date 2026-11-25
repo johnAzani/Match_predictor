@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises'
+import { appendFile, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { assessDailyData, chooseDailyPick, nigeriaDay } from '../src/lib/dailyPicks.js'
 import { outcome, summarizeTracker } from '../src/lib/tracker.js'
@@ -55,6 +55,15 @@ function recentResults(records, day) {
     }))
 }
 
+// Failures have to be readable from the run page and from the API, not only
+// from a log that may be unavailable. Never include the token or the chat id.
+async function reportFailure(message) {
+  console.error(`::error::${message}`)
+  const summary = process.env.GITHUB_STEP_SUMMARY
+  if (summary) await appendFile(summary, `## Telegram update failed\n\n${message}\n`)
+  process.exitCode = 1
+}
+
 async function main() {
   const now = Date.now()
   const day = nigeriaDay(now)
@@ -81,15 +90,15 @@ async function main() {
   })
   const result = await postTelegram({ token, chatId, text })
   if (!result.ok) {
-    // Never print the token or the chat id: the message id is enough to trace.
-    console.error(`Telegram delivery failed: ${result.reason}`)
-    process.exitCode = 1
+    // Never print the token or the chat id: the description is enough to trace.
+    await reportFailure(`Telegram delivery failed: ${result.reason}`)
     return
   }
+  const stepSummary = process.env.GITHUB_STEP_SUMMARY
+  if (stepSummary) await appendFile(stepSummary, `## Telegram update sent\n\nMessage ${result.messageId ?? 'unknown'} was posted to the group.\n`)
   console.log(`Telegram update sent (message ${result.messageId ?? 'unknown'}).`)
 }
 
-main().catch((error) => {
-  console.error(`Could not post the Telegram update: ${error.message}`)
-  process.exitCode = 1
+main().catch(async (error) => {
+  await reportFailure(`Could not post the Telegram update: ${error.message}`)
 })

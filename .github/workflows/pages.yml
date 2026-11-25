@@ -198,7 +198,7 @@ jobs:
           name: matchday-snapshot
           path: telegram-snapshot
       - name: Post the daily update to the Telegram group
-        run: node scripts/notify-telegram.js
+        run: node --use-system-ca scripts/notify-telegram.js
         env:
           # Scoped to this step. The token is never written to the site, the
           # bundle or any log line.
