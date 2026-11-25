@@ -10,6 +10,7 @@
     "test": "vitest run",
     "start": "node --use-system-ca server/index.js --production",
     "snapshot": "node --use-system-ca scripts/generate-static-feed.js",
+    "telegram": "node scripts/notify-telegram.js",
     "verify-backup": "node scripts/verify-ledger-backup.js",
     "audit:teams": "node --use-system-ca scripts/audit-five-dollar.js"
   },

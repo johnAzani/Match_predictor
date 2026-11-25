@@ -64,6 +64,15 @@ jobs:
           path: public/data/track-record.json
           retention-days: 90
           if-no-files-found: error
+      # The Telegram update must describe the same snapshot that was deployed,
+      # never a locally regenerated one.
+      - name: Save the matchday snapshot for the Telegram update
+        uses: actions/upload-artifact@v7
+        with:
+          name: matchday-snapshot
+          path: public/data/matchday.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Set the GitHub Pages base path
         shell: bash
         run: |
@@ -164,6 +173,40 @@ jobs:
           BACKUP_RESULT: ${{ needs.backup.result }}
           SOURCE_HEALTH: ${{ needs.build.outputs.source_health }}
           OVERDUE_MONITOR_RESULT: ${{ steps.overdue_monitor.outcome }}
+
+  telegram:
+    # Only after the pick is published: the group must never see a selection the
+    # site failed to deploy. A manual run can be used to post a test update.
+    if: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.deploy.result == 'success' && needs.backup.result == 'success' }}
+    needs: [build, deploy, backup]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v8
+        with:
+          name: forecast-ledger
+          path: telegram-ledger
+      - uses: actions/download-artifact@v8
+        with:
+          name: matchday-snapshot
+          path: telegram-snapshot
+      - name: Post the daily update to the Telegram group
+        run: node scripts/notify-telegram.js
+        env:
+          # Scoped to this step. The token is never written to the site, the
+          # bundle or any log line.
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TRACK_RECORD_PATH: telegram-ledger/track-record.json
+          MATCHDAY_PATH: telegram-snapshot/matchday.json
+          SITE_URL: ${{ needs.deploy.outputs.page_url }}
 
   schedule_heartbeat:
     name: Scheduled refresh heartbeat

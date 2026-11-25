@@ -113,6 +113,28 @@ After a successful deployment and backup have confirmed that the exact ledger is
 
 If the build, deployment, confirmed backup, source-health check or overdue monitor fails, a separate least-privilege job opens or updates a public **Forecast refresh or backup needs attention** issue and links the run. An overdue result by itself does not fail the workflow. A later fully healthy run closes the refresh issue. GitHub email or mobile notifications depend on the owner's GitHub notification/watch settings; no independent email or SMS service is configured by default. A cancelled workflow, disabled schedule, GitHub/API outage, or failure of the issue job itself may prevent an issue being opened. The site can still warn about an aging ledger when someone visits, but this is **not independent uptime monitoring**.
 
+### Telegram group updates (optional)
+
+The daily refresh can post one message to a Telegram group so the day's pick and the latest scores arrive without opening the site. It runs as the `telegram` job in `pages.yml`, **only after the deploy and the ledger backup have both succeeded**, and only on the scheduled run or a manual dispatch — a routine push to `main` does not post.
+
+The message contains the day's single (or an explicit "no pick today"), the price it needs to break even, up to six results from the last day with ✔/✘, the running record and the current ticket state. It is built from the same snapshot that was deployed and from the same `chooseDailyPick` function the site uses, so the group and the page cannot disagree.
+
+**Setup**
+
+1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and keep the token it returns.
+2. Add the bot to your group. For a group that restricts posting, make it an admin with permission to send messages.
+3. Send any message in the group, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `chat.id` from the result — group ids are negative and usually start with `-100`.
+4. In GitHub, add repository secrets `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (Settings → Secrets and variables → Actions).
+5. Run the workflow once with **Run workflow** to post a test message. It will then post with each scheduled refresh.
+
+**What it will not do**
+
+- Post before the site is live: the job depends on a successful deploy and backup.
+- Fail anyone's build when it is not configured — without both secrets the step logs `Telegram is not configured` and exits successfully.
+- Leak the token: it is passed only to the posting step, never written to the site, the bundle, the ledger or a log line. Failures report Telegram's description only.
+- Carry your personal data: the group sees the public forecast and the ticket, never your saved picks, stakes or odds, which stay in your browser.
+- Act as a backup. The Release backups remain the ledger copy of record, and anyone in the group can read the picks.
+
 ### Independent watchdog (optional)
 
 The repository includes an **opt-in** watchdog. It is **not active just because this code is deployed**; the owner must set up both services and verify delivery. It has two separate checks, with two different secret ping URLs:
