@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "note": "Selections committed before kick-off. Every selection is judged on its own — the ticket is never an accumulator, and no selection is edited or removed after it has been played.",
+  "tickets": [
+    {
+      "id": "2026-11-27",
+      "label": "Weekend of 27–29 November 2026",
+      "selectedAt": "2026-11-25T18:05:00.000Z",
+      "note": "Five independent singles. If you follow the ₦100-a-day rule, play only the best selection on each day: Werder Bremen on Friday, Mainz on Saturday. The others are tracked for accuracy, not for staking.",
+      "selections": [
+        {
+          "id": "2026-11-27-1",
+          "date": "2026-11-27",
+          "league": "Bundesliga",
+          "home": "Werder Bremen",
+          "away": "M'gladbach",
+          "market": "1X2",
+          "side": "home",
+          "label": "Werder Bremen win",
+          "probability": 0.68,
+          "fairOdds": 1.47,
+          "requiredPrice": 1.48
+        },
+        {
+          "id": "2026-11-27-2",
+          "date": "2026-11-27",
+          "league": "Serie A",
+          "home": "Venezia",
+          "away": "Bologna",
+          "market": "1X2",
+          "side": "away",
+          "label": "Bologna win",
+          "probability": 0.57,
+          "fairOdds": 1.75,
+          "requiredPrice": 1.76
+        },
+        {
+          "id": "2026-11-28-1",
+          "date": "2026-11-28",
+          "league": "Bundesliga",
+          "home": "Mainz",
+          "away": "Union Berlin",
+          "market": "1X2",
+          "side": "home",
+          "label": "Mainz win",
+          "probability": 0.6,
+          "fairOdds": 1.67,
+          "requiredPrice": 1.68
+        },
+        {
+          "id": "2026-11-28-2",
+          "date": "2026-11-28",
+          "league": "La Liga",
+          "home": "Real Betis",
+          "away": "Rayo Vallecano",
+          "market": "1X2",
+          "side": "home",
+          "label": "Real Betis win",
+          "probability": 0.59,
+          "fairOdds": 1.69,
+          "requiredPrice": 1.7
+        },
+        {
+          "id": "2026-11-28-3",
+          "date": "2026-11-28",
+          "league": "Serie A",
+          "home": "Frosinone",
+          "away": "Parma",
+          "market": "1X2",
+          "side": "home",
+          "label": "Frosinone win",
+          "probability": 0.59,
+          "fairOdds": 1.69,
+          "requiredPrice": 1.7
+        }
+      ]
+    }
+  ]
+}
