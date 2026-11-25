@@ -5,6 +5,7 @@ import ForecastHistory from './ForecastHistory.jsx'
 import DataHealth from './DataHealth.jsx'
 import PerformanceCheck from './PerformanceCheck.jsx'
 import ModelReview from './ModelReview.jsx'
+import Ticket from './Ticket.jsx'
 
 function shortDate(value) {
   const date = value.length === 10 ? new Date(`${value}T12:00:00Z`) : new Date(value)
@@ -99,6 +100,7 @@ export default function TrackRecord({ tracker }) {
           <p>{summary.excluded ? `${summary.excluded} match${summary.excluded === 1 ? '' : 'es'} excluded because publication or a result could not be verified. ` : ''}Results update from the data feed, not in play. Small samples can be misleading.</p>
         </div>
         <PerformanceCheck tracker={data} />
+        <Ticket tracker={data} />
         <ModelReview tracker={data} />
         <div className="track-panels"><LeaguePerformance summary={summary} /><TimePerformance summary={summary} /></div>
         <RecordRows summary={summary} />

@@ -879,3 +879,35 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .model-review__table { font-size: 10px; }
   .model-review__table th, .model-review__table td { padding: 8px 6px; }
 }
+
+/* Ticket — selections committed before kick-off, settled from the ledger */
+.ticket { margin-top: 14px; padding: 24px; border: 1px solid #384b38; border-radius: 6px; background: #131e17; }
+.ticket__heading { display: flex; flex-wrap: wrap; gap: 18px; justify-content: space-between; align-items: flex-start; }
+.ticket__heading h3 { margin: 6px 0 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.4px; color: #f1f5ec; }
+.ticket__heading p { margin: 0; max-width: 62ch; color: #93a091; font-size: 12px; line-height: 1.6; }
+.ticket__score { min-width: 170px; padding: 12px 14px; border: 1px solid #34452f; border-radius: 4px; background: #17231a; text-align: right; }
+.ticket__score strong { display: block; font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 800; color: var(--lime); letter-spacing: -.5px; }
+.ticket__score strong span { margin: 0 4px; color: #6d7d69; }
+.ticket__score small { display: block; color: #93a091; font-size: 10px; }
+.ticket__score em { display: block; margin-top: 3px; color: #7f8d7d; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .07em; }
+.ticket__sheet { margin-top: 16px; padding: 16px; border: 1px solid #2f4032; border-radius: 4px; background: #16211a; }
+.ticket__sheet-head { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: baseline; }
+.ticket__sheet-head span { display: block; color: #93a091; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.ticket__sheet-head strong { display: block; margin-top: 3px; font-size: 14px; color: #eef4ea; }
+.ticket__sheet-head small { color: #7f8d7d; font-size: 10px; }
+.ticket__table { margin-top: 12px; }
+.ticket__table tbody th span { color: #6d7d69; font-weight: 600; }
+.ticket__table tbody th small, .ticket__table td small { display: block; margin-top: 3px; color: #7f8d7d; font-size: 9px; font-weight: 600; letter-spacing: 0; text-transform: none; }
+.ticket__table tr.is-won th { color: #e8f6d9; }
+.ticket__chip { display: inline-block; padding: 3px 7px; border: 1px solid #34452f; border-radius: 3px; color: #a9b8a4; font-size: 9px; font-weight: 800; letter-spacing: .06em; white-space: nowrap; }
+.ticket__chip.is-won { border-color: #4c6a3d; background: #17281a; color: var(--lime); }
+.ticket__chip.is-lost { border-color: #5d3a34; background: #241716; color: #d89284; }
+.ticket__chip.is-push { border-color: #55502f; background: #241f16; color: #d8c584; }
+.ticket__note { margin: 12px 0 0; color: #7f8d7d; font-size: 11px; line-height: 1.6; }
+.ticket__footnote { margin: 14px 0 0; color: #7f8d7d; font-size: 11px; line-height: 1.6; }
+.ticket__footnote code { padding: 1px 4px; border-radius: 3px; background: #1d2a20; color: #c3d3bd; font-size: 10px; }
+@media (max-width: 720px) {
+  .ticket { padding: 16px; }
+  .ticket__table { font-size: 10px; }
+  .ticket__table th, .ticket__table td { padding: 8px 6px; }
+}
