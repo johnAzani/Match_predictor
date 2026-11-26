@@ -103,11 +103,12 @@ describe('ticket panel', () => {
     render(<Ticket tracker={tracker([])} />)
     expect(screen.getByText(/TICKET 2026-11-27/)).toBeInTheDocument()
     expect(screen.getByText(/TICKET 2026-11-29/)).toBeInTheDocument()
-    // Two tables: 6 rows for the weekend ticket (5 selections + header) and 5
-    // for Sunday's (4 selections + header).
-    expect(screen.getAllByRole('row')).toHaveLength(11)
-    expect(screen.getAllByText('AWAITING LEDGER')).toHaveLength(9)
-    const ids = screen.getAllByText(/TICKET 2026-11-/).map((node) => node.textContent)
-    expect(ids).toEqual(['TICKET 2026-11-29', 'TICKET 2026-11-27'])
+    expect(screen.getByText(/TICKET 2026-W49/)).toBeInTheDocument()
+    // Three tables: 6 rows for the weekend ticket, 5 for Sunday's and 7 for the
+    // week slip, each counting its header.
+    expect(screen.getAllByRole('row')).toHaveLength(18)
+    expect(screen.getAllByText('AWAITING LEDGER')).toHaveLength(15)
+    const ids = screen.getAllByText(/TICKET 2026-/).map((node) => node.textContent)
+    expect(ids).toEqual(['TICKET 2026-W49', 'TICKET 2026-11-29', 'TICKET 2026-11-27'])
   })
 })
