@@ -79,19 +79,124 @@
           "id": "2026-11-27-double",
           "short": "Double",
           "label": "Two-leg double — the best selection from each day",
-          "legs": ["2026-11-27-1", "2026-11-28-1"]
+          "legs": [
+            "2026-11-27-1",
+            "2026-11-28-1"
+          ]
         },
         {
           "id": "2026-11-27-treble",
           "short": "Treble",
           "label": "Three-leg treble — both days, one more leg",
-          "legs": ["2026-11-27-1", "2026-11-28-1", "2026-11-28-2"]
+          "legs": [
+            "2026-11-27-1",
+            "2026-11-28-1",
+            "2026-11-28-2"
+          ]
         },
         {
           "id": "2026-11-27-fivefold",
           "short": "All five",
           "label": "Five-leg multiple — tracked, not recommended",
-          "legs": ["2026-11-27-1", "2026-11-27-2", "2026-11-28-1", "2026-11-28-2", "2026-11-28-3"]
+          "legs": [
+            "2026-11-27-1",
+            "2026-11-27-2",
+            "2026-11-28-1",
+            "2026-11-28-2",
+            "2026-11-28-3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2026-11-29",
+      "label": "Sunday 29 November 2026",
+      "selectedAt": "2026-11-26T10:30:00.000Z",
+      "note": "Four singles from Sunday's card, picked three days before kick-off. Played as one slip they need all four and pay 6.10 or better; played separately, each is scored on its own. At the ₦100-a-day rule, the two-leg double is the only one of these with a sensible chance.",
+      "selections": [
+        {
+          "id": "2026-11-29-1",
+          "date": "2026-11-29",
+          "league": "Serie A",
+          "home": "Sassuolo",
+          "away": "Napoli",
+          "market": "1X2",
+          "side": "away",
+          "label": "Napoli win",
+          "probability": 0.568025,
+          "fairOdds": 1.76,
+          "requiredPrice": 1.77
+        },
+        {
+          "id": "2026-11-29-2",
+          "date": "2026-11-29",
+          "league": "Premier League",
+          "home": "Brighton",
+          "away": "Newcastle",
+          "market": "1X2",
+          "side": "home",
+          "label": "Brighton win",
+          "probability": 0.632915,
+          "fairOdds": 1.58,
+          "requiredPrice": 1.58
+        },
+        {
+          "id": "2026-11-29-3",
+          "date": "2026-11-29",
+          "league": "La Liga",
+          "home": "Deportivo",
+          "away": "FC Barcelona",
+          "market": "1X2",
+          "side": "away",
+          "label": "Barcelona win",
+          "probability": 0.665419,
+          "fairOdds": 1.5,
+          "requiredPrice": 1.51
+        },
+        {
+          "id": "2026-11-29-4",
+          "date": "2026-11-29",
+          "league": "Serie A",
+          "home": "Roma",
+          "away": "Monza",
+          "market": "1X2",
+          "side": "home",
+          "label": "Roma win",
+          "probability": 0.685944,
+          "fairOdds": 1.46,
+          "requiredPrice": 1.46
+        }
+      ],
+      "multiples": [
+        {
+          "id": "2026-11-29-double",
+          "short": "Double",
+          "label": "Two-leg double — Roma and Barcelona, the strongest of the day",
+          "legs": [
+            "2026-11-29-4",
+            "2026-11-29-3"
+          ]
+        },
+        {
+          "id": "2026-11-29-treble",
+          "short": "Treble",
+          "label": "Three-leg treble — add Brighton",
+          "legs": [
+            "2026-11-29-4",
+            "2026-11-29-3",
+            "2026-11-29-2"
+          ]
+        },
+        {
+          "id": "2026-11-29-allfour",
+          "short": "All four",
+          "label": "Four-leg multiple — the whole card",
+          "legs": [
+            "2026-11-29-4",
+            "2026-11-29-3",
+            "2026-11-29-2",
+            "2026-11-29-1"
+          ]
         }
       ]
     }

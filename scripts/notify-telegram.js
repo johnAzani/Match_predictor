@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { assessDailyData, chooseDailyPick, nigeriaDay } from '../src/lib/dailyPicks.js'
 import { outcome, summarizeTracker } from '../src/lib/tracker.js'
 import { legName, summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
-import { buildUpdate, postTelegram } from './lib/telegram.js'
+import { buildUpdate, liveTickets, postTelegram } from './lib/telegram.js'
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
 const HOUR = 60 * 60 * 1000
@@ -44,15 +44,15 @@ const shortDay = (date) => new Intl.DateTimeFormat('en-GB', { weekday: 'short', 
 function ticketUpdate(tickets, records) {
   if (!tickets.length) return null
   const ordered = tickets.slice().sort((a, b) => b.id.localeCompare(a.id))
-  const latest = summarizeTicket(ordered[0], records)
+  const summarized = ordered.map((ticket) => summarizeTicket(ticket, records))
   const totals = summarizeTickets(ordered, records)
-  return {
+  const shown = liveTickets(summarized)
+  const format = (latest) => ({
     id: latest.id,
     label: latest.label,
     won: latest.won,
     lost: latest.lost,
     push: latest.push,
-    totals: { won: totals.won, lost: totals.lost, selections: totals.selections },
     selections: latest.selections.map((selection) => ({
       day: shortDay(selection.date),
       home: selection.home,
@@ -77,6 +77,10 @@ function ticketUpdate(tickets, records) {
         need: multiple.requiredPrice === null ? 'the fair price' : multiple.requiredPrice.toFixed(2),
         state: multiple.state,
       })),
+  })
+  return {
+    totals: { won: totals.won, lost: totals.lost, selections: totals.selections },
+    tickets: shown.map(format),
   }
 }
 
@@ -124,12 +128,14 @@ async function main() {
   const feedData = await readJson(matchdayPath)
   const summary = summarizeTracker(trackerData)
   const tickets = (await readJson(resolve('picks/tickets.json'))).tickets
+  const slips = ticketUpdate(tickets, trackerData.records)
   const text = buildUpdate({
     day: watLabel(day),
     pick: dailyPick(feedData, trackerData, now),
     results: recentResults(trackerData.records, day),
     record: { correct: summary.correct, scored: summary.evaluated },
-    ticket: ticketUpdate(tickets, trackerData.records),
+    tickets: slips?.tickets ?? [],
+    totals: slips?.totals ?? null,
     siteUrl,
   })
   const result = await postTelegram({ token, chatId, text })
