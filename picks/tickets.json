@@ -199,6 +199,99 @@
           ]
         }
       ]
+    },
+    {
+      "id": "2026-W48",
+      "label": "Week of 23 Nov – 29 Nov 2026",
+      "selectedAt": "2026-11-26T11:19:23.763Z",
+      "generated": true,
+      "note": "Selected automatically from the model's eligible picks for this week and written before the first kick-off. Each selection is scored on its own; the multiples combine them into one slip, where every leg must win.",
+      "selections": [
+        {
+          "id": "2026-W48-2026-11-28-1",
+          "date": "2026-11-28",
+          "league": "Bundesliga",
+          "home": "Hamburger SV",
+          "away": "Bayern",
+          "market": "1X2",
+          "side": "away",
+          "label": "Bayern win",
+          "probability": 0.709388,
+          "fairOdds": 1.41,
+          "requiredPrice": 1.41
+        },
+        {
+          "id": "2026-W48-2026-11-28-2",
+          "date": "2026-11-28",
+          "league": "La Liga",
+          "home": "Real Madrid",
+          "away": "Alavés",
+          "market": "1X2",
+          "side": "home",
+          "label": "Real Madrid win",
+          "probability": 0.686818,
+          "fairOdds": 1.46,
+          "requiredPrice": 1.46
+        },
+        {
+          "id": "2026-W48-2026-11-29-3",
+          "date": "2026-11-29",
+          "league": "La Liga",
+          "home": "Deportivo",
+          "away": "Barcelona",
+          "market": "1X2",
+          "side": "away",
+          "label": "Barcelona win",
+          "probability": 0.665419,
+          "fairOdds": 1.5,
+          "requiredPrice": 1.51
+        },
+        {
+          "id": "2026-W48-2026-11-28-4",
+          "date": "2026-11-28",
+          "league": "Serie A",
+          "home": "Torino",
+          "away": "Lazio",
+          "market": "1X2",
+          "side": "away",
+          "label": "Lazio win",
+          "probability": 0.573558,
+          "fairOdds": 1.74,
+          "requiredPrice": 1.75
+        }
+      ],
+      "multiples": [
+        {
+          "id": "2026-W48-double",
+          "short": "Double",
+          "label": "Two-leg double — the two strongest of the week",
+          "legs": [
+            "2026-W48-2026-11-28-1",
+            "2026-W48-2026-11-28-2"
+          ]
+        },
+        {
+          "id": "2026-W48-treble",
+          "short": "Treble",
+          "label": "Three-leg treble — the three strongest of the week",
+          "legs": [
+            "2026-W48-2026-11-28-1",
+            "2026-W48-2026-11-28-2",
+            "2026-W48-2026-11-29-3"
+          ]
+        },
+        {
+          "id": "2026-W48-all",
+          "short": "All four",
+          "label": "4-leg multiple — every pick of the week",
+          "legs": [
+            "2026-W48-2026-11-28-1",
+            "2026-W48-2026-11-28-2",
+            "2026-W48-2026-11-29-3",
+            "2026-W48-2026-11-28-4"
+          ]
+        }
+      ]
     }
   ]
 }
