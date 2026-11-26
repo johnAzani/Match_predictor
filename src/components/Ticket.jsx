@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { ReceiptText } from 'lucide-react'
 import ticketData from '../../picks/tickets.json'
-import { MARKET_LABELS, summarizeTickets } from '../lib/ticket.js'
+import { MARKET_LABELS, legName, summarizeTickets } from '../lib/ticket.js'
 
 const percent = (value) => (value === null || value === undefined ? '—' : `${(value * 100).toFixed(1)}%`)
 const price = (value) => (Number.isFinite(value) ? value.toFixed(2) : '—')
@@ -12,6 +12,7 @@ const STATUS_LABELS = Object.freeze({
   push: 'PUSH',
   pending: 'PENDING',
   unrecorded: 'AWAITING LEDGER',
+  invalid: 'REFUSED',
 })
 
 function shortDate(value) {
@@ -51,7 +52,7 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
         <div className="ticket__sheet" key={ticket.id}>
           <div className="ticket__sheet-head">
             <div><span>TICKET {ticket.id}</span><strong>{ticket.label}</strong></div>
-            <small>{ticket.selections.length} independent singles · never multiplied</small>
+            <small>{ticket.selections.length} single{ticket.selections.length === 1 ? '' : 's'} scored one by one{ticket.multiples.length ? ` · ${ticket.multiples.length} multiple${ticket.multiples.length === 1 ? '' : 's'} below` : ''}</small>
           </div>
           <table className="calibration-table ticket__table">
             <caption className="sr-only">Selections in ticket {ticket.id} with their model probability, the price needed and the settled outcome</caption>
@@ -69,12 +70,46 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
               </tr>
             ))}</tbody>
           </table>
+          {ticket.multiples.length > 0 && (
+            <div className="ticket__multiples">
+              <div className="ticket__multiples-head">
+                <strong>MULTIPLES</strong>
+                <small>the same singles combined into one slip · every leg from a different match</small>
+              </div>
+              <ul>
+                {ticket.multiples.map((multiple) => (
+                  <li key={multiple.id} className={`is-${multiple.state}`}>
+                    <div className="ticket__multiples-legs">
+                      <strong>{multiple.label}</strong>
+                      <small>
+                        {multiple.legs.length} legs · {multiple.legs.map(legName).join(' + ')}
+                        {multiple.state === 'invalid' && multiple.note ? ` · ${multiple.note}` : ''}
+                        {multiple.voids ? ` · ${multiple.voids} voided` : ''}
+                      </small>
+                    </div>
+                    <div className="ticket__multiples-price">
+                      <span>{percent(multiple.probability)}</span>
+                      <small>{multiple.requiredPrice === null ? 'no price' : `min ${price(multiple.requiredPrice)}`}</small>
+                    </div>
+                    <span className={`ticket__chip is-${multiple.state}`}>{STATUS_LABELS[multiple.state] ?? multiple.state}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="ticket__note">
+                A multiple wins only if every leg wins, so the chance is the product of the legs above — which is why it
+                shrinks leg by leg while the price grows. It is only worth taking at or above the price shown; below that
+                it loses money over time even when it wins. Legs are always from different matches: two markets on one
+                fixture are related bets, so they are refused rather than multiplied, and a leg that pushes drops out and
+                leaves the price of the remaining legs.
+              </p>
+            </div>
+          )}
           {ticket.note && <p className="ticket__note">{ticket.note}</p>}
         </div>
       ))}
 
       <p className="ticket__footnote">
-        Selections are committed to <code>picks/tickets.json</code> before kick-off, so the commit history is the timestamp. Each one is scored as a single against the public ledger: a draw wins <strong>+0.5</strong>, a one-goal defeat returns the stake on <strong>+1</strong>, and a push is not counted as a win. No odds are supplied — “needs” is the fair price implied by the model probability, and a price below it is a losing bet even when the selection wins. {published ? '' : 'Local previews are not scored.'}
+        Selections are committed to <code>picks/tickets.json</code> before kick-off, so the commit history is the timestamp. Each one is scored as a single against the public ledger, and its multiples are settled from those same legs: a draw wins <strong>+0.5</strong>, a one-goal defeat returns the stake on <strong>+1</strong>, and a push is not counted as a win. No odds are supplied — “needs” is the fair price implied by the model probability, and a price below it is a losing bet even when the selection wins. {published ? '' : 'Local previews are not scored.'}
       </p>
     </section>
   )

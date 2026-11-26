@@ -44,7 +44,7 @@ function ticketLines(ticket) {
   const lines = [
     '',
     heading('🎫', `Ticket ${escapeHtml(ticket.id)}`),
-    `<i>${count} single${count === 1 ? '' : 's'} · booked separately, never multiplied</i>`,
+    `<i>${count} single${count === 1 ? '' : 's'} · booked separately</i>`,
   ]
   for (const selection of ticket.selections) {
     const mark = SETTLED_MARKS[selection.state] ?? PENDING_MARK
@@ -55,8 +55,38 @@ function ticketLines(ticket) {
   const summary = settled
     ? `${ticket.won} won · ${ticket.lost} lost${ticket.push ? ` · ${ticket.push} push` : ''}${count > settled ? ` · ${count - settled} to settle` : ''}`
     : `${count} to settle`
-  lines.push('', `<i>${summary}</i>`)
+  // With multiples on the same message, the two tallies need naming.
+  const singles = ticket.multiples?.length ? `Singles ${summary}` : summary
+  const multiples = multipleLines(ticket.multiples)
+  if (multiples.length) lines.push('', ...multiples)
+  lines.push('', `<i>${singles}</i>`)
   if (settled === 0) lines.push('<i>Book each at its min price or better</i>')
+  return lines
+}
+
+// A multiple is one slip whose legs come from different matches, so it is shown
+// as a single line with the combined price: too many legs and the slip stops
+// fitting on a phone.
+function multipleLines(multiples = []) {
+  const valid = multiples.filter((multiple) => multiple.state !== 'invalid')
+  if (!valid.length) return []
+  const lines = [heading('🧮', 'Multiples'), '<i>One slip · every leg must win · different matches</i>']
+  for (const multiple of valid) {
+    const name = escapeHtml(multiple.short ?? multiple.label ?? 'Multiple')
+    const legs = escapeHtml((multiple.legs ?? []).map((leg) => leg.short ?? leg.name ?? leg).join(' + '))
+    const mark = SETTLED_MARKS[multiple.state] ?? PENDING_MARK
+    if (multiple.state === 'won' || multiple.state === 'lost' || multiple.state === 'push') {
+      lines.push(`${mark} ${name} · ${legs}`)
+    } else {
+      lines.push(`${mark} ${name} · ${legs} → ${escapeHtml(multiple.probability)}%, min ${escapeHtml(multiple.need)}`)
+    }
+  }
+  const decided = valid.filter((multiple) => multiple.state === 'won' || multiple.state === 'lost')
+  if (decided.length) {
+    const won = decided.filter((multiple) => multiple.state === 'won').length
+    const open = valid.length - decided.length
+    lines.push(`<i>Multiples ${won} won · ${decided.length - won} lost${open ? ` · ${open} open` : ''}</i>`)
+  }
   return lines
 }
 

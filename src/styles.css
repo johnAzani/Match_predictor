@@ -904,6 +904,21 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .ticket__chip.is-lost { border-color: #5d3a34; background: #241716; color: #d89284; }
 .ticket__chip.is-push { border-color: #55502f; background: #241f16; color: #d8c584; }
 .ticket__note { margin: 12px 0 0; color: #7f8d7d; font-size: 11px; line-height: 1.6; }
+.ticket__multiples { margin-top: 14px; padding-top: 12px; border-top: 1px dashed #2f4032; }
+.ticket__multiples-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; justify-content: space-between; }
+.ticket__multiples-head strong { color: #c3d3bd; font-size: 9px; font-weight: 800; letter-spacing: .1em; }
+.ticket__multiples-head small { color: #7f8d7d; font-size: 10px; }
+.ticket__multiples ul { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ticket__multiples li { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; justify-content: space-between; padding: 8px 10px; border: 1px solid #2f4032; border-radius: 3px; background: #131d17; }
+.ticket__multiples li.is-won { border-color: #4c6a3d; }
+.ticket__multiples li.is-lost { border-color: #5d3a34; }
+.ticket__multiples-legs { flex: 1 1 200px; min-width: 0; }
+.ticket__multiples-legs strong { display: block; color: #e8f0e2; font-size: 12px; font-weight: 700; }
+.ticket__multiples-legs small { display: block; margin-top: 2px; color: #7f8d7d; font-size: 10px; line-height: 1.5; }
+.ticket__multiples-price { min-width: 74px; text-align: right; }
+.ticket__multiples-price span { display: block; color: var(--lime); font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 800; letter-spacing: -.3px; }
+.ticket__multiples-price small { display: block; color: #93a091; font-size: 9px; font-weight: 800; letter-spacing: .05em; }
+.ticket__chip.is-invalid { border-color: #5d3a34; background: #241716; color: #d89284; }
 .ticket__footnote { margin: 14px 0 0; color: #7f8d7d; font-size: 11px; line-height: 1.6; }
 .ticket__footnote code { padding: 1px 4px; border-radius: 3px; background: #1d2a20; color: #c3d3bd; font-size: 10px; }
 @media (max-width: 720px) {

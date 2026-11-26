@@ -65,6 +65,56 @@ export function settleSelection(selection, records) {
   return { state: correct ? 'won' : 'lost', score, note: null }
 }
 
+// The club a selection actually backs, short enough for a leg list.
+export function legName(selection) {
+  if (selection.side === 'draw') return 'Draw'
+  if (selection.market === '1X2') return selection.side === 'home' ? selection.home : selection.away
+  return selection.label
+}
+
+// Two selections on the same fixture are related contingencies, not independent
+// legs: their prices move together, so multiplying the probabilities would be
+// wrong. The fixture key is what keeps a multiple honest.
+export function fixtureKey(selection) {
+  return [normalizeName(selection.home), normalizeName(selection.away)].sort().join('|')
+}
+
+/**
+ * A multiple combines selections that are already on the ticket, so nothing new
+ * is predicted here: the combined price is the product of model probabilities
+ * and the combined odds are its reciprocal. Legs must come from different
+ * fixtures, and a void leg (a push) simply drops out.
+ */
+export function summarizeMultiple(multiple, selections) {
+  const wanted = Array.isArray(multiple?.legs) ? multiple.legs : []
+  const byId = new Map(selections.map((selection) => [selection.id, selection]))
+  const legs = wanted.map((id) => byId.get(id)).filter(Boolean)
+  const unknown = wanted.filter((id) => !byId.has(id))
+  const base = { ...multiple, legs, unknown }
+
+  if (legs.length < 2) {
+    return { ...base, probability: null, fairOdds: null, requiredPrice: null, state: 'invalid', note: 'A multiple needs at least two legs.' }
+  }
+  const keys = legs.map(fixtureKey)
+  if (new Set(keys).size !== keys.length) {
+    return { ...base, probability: null, fairOdds: null, requiredPrice: null, state: 'invalid', note: 'Two legs on the same match are related bets, not a multiple.' }
+  }
+
+  const states = legs.map((leg) => leg.state ?? 'pending')
+  const live = legs.filter((leg) => leg.state !== 'push')
+  const probability = live.length ? live.reduce((total, leg) => total * leg.probability, 1) : null
+  const fairOdds = probability ? 1 / probability : null
+  const requiredPrice = fairOdds ? Math.ceil(fairOdds * 100) / 100 : null
+  const voids = legs.length - live.length
+
+  let state = 'pending'
+  if (states.includes('lost')) state = 'lost'
+  else if (live.length === 0) state = 'push'
+  else if (live.every((leg) => leg.state === 'won')) state = 'won'
+
+  return { ...base, probability, fairOdds, requiredPrice, state, voids }
+}
+
 const tally = () => ({ won: 0, lost: 0, push: 0, pending: 0, unrecorded: 0 })
 
 export function summarizeTicket(ticket, records) {
@@ -75,9 +125,11 @@ export function summarizeTicket(ticket, records) {
     return { ...selection, ...outcome }
   })
   const decided = summary.won + summary.lost
+  const multiples = (ticket.multiples ?? []).map((multiple) => summarizeMultiple(multiple, selections))
   return {
     ...ticket,
     selections,
+    multiples,
     won: summary.won,
     lost: summary.lost,
     push: summary.push,

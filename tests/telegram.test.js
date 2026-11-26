@@ -72,7 +72,7 @@ describe('telegram formatting', () => {
   it('lists a pending ticket with the price each selection needs', () => {
     const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: [], record, ticket: pendingTicket })
     expect(text).toContain('<b>🎫 Ticket 2026-11-27</b>')
-    expect(text).toContain('<i>2 singles · booked separately, never multiplied</i>')
+    expect(text).toContain('<i>2 singles · booked separately</i>')
     expect(text).toContain("▫️ Fri 27 Nov · Werder Bremen v M'gladbach → Werder Bremen win, 68%, min 1.48")
     expect(text).toContain('<i>2 to settle</i>')
     expect(text).toContain('<i>Book each at its min price or better</i>')
@@ -84,6 +84,40 @@ describe('telegram formatting', () => {
     expect(text).toContain("❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win")
     expect(text).toContain('<i>1 won · 1 lost</i>')
     expect(text).not.toContain('Book each at its min price')
+  })
+
+  it('posts a multiple as one slip with the combined price', () => {
+    const text = buildUpdate({
+      day: 'Fri 27 Nov 2026', pick, results: [], record,
+      ticket: {
+        ...pendingTicket,
+        multiples: [{ short: 'Double', legs: ['Werder Bremen', 'Mainz'], probability: '40.8', need: '2.46', state: 'pending' }],
+      },
+    })
+    expect(text).toContain('<b>🧮 Multiples</b>')
+    expect(text).toContain('<i>One slip · every leg must win · different matches</i>')
+    expect(text).toContain('▫️ Double · Werder Bremen + Mainz → 40.8%, min 2.46')
+  })
+
+  it('drops the price once the multiple has settled', () => {
+    const text = buildUpdate({
+      day: 'Fri 27 Nov 2026', pick, results: [], record,
+      ticket: {
+        ...settledTicket,
+        multiples: [{ short: 'Double', legs: ['Werder Bremen', 'Mainz'], probability: '40.8', need: '2.46', state: 'won' }],
+      },
+    })
+    expect(text).toContain('✅ Double · Werder Bremen + Mainz')
+    expect(text).not.toContain('min 2.46')
+  })
+
+  it('never posts a multiple whose legs share a match', () => {
+    const text = buildUpdate({
+      day: 'Fri 27 Nov 2026', pick, results: [], record,
+      ticket: { ...pendingTicket, multiples: [{ short: 'Refused', legs: ['Werder Bremen', 'Werder Bremen'], state: 'invalid' }] },
+    })
+    expect(text).not.toContain('🧮')
+    expect(text).not.toContain('Refused')
   })
 
   it('adds the all-time ticket tally once there is more than one ticket', () => {
