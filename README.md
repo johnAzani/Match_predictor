@@ -90,17 +90,18 @@ Settling is not self-scored. The panel reads the same public ledger the rest of 
 
 Each selection is scored on its own, and the ticket's headline summary is a hit rate, never a return. The "needs" column is the fair price implied by the model probability; the site supplies no odds, and a price below that figure loses money even when the selection wins.
 
-### Tickets are written before kick-off, automatically
+### Tickets are written before kick-off, automatically — one per week
 
-The next matchday's ticket is planned by the build itself, from the same snapshot that is about to be published, so a day with qualifying fixtures cannot slip past:
+The slip is a **week**, not a day: the good games are spread from Monday to Sunday, and one bookable ticket should hold them together. The build plans it from the same snapshot that is about to be published, so a week cannot slip past:
 
 - `scripts/build-ticket.js` runs in the build job after the snapshot is generated and before the site is built, so the page, the Telegram message and the commit all describe the same slip.
 - The selection rule is the model's own: one pick per fixture, the strongest outcome, and only when it clears **57%**. Fixtures that have kicked off, or kick off within **45 minutes**, are never included; a slip that could be written after a match started is not a forecast.
-- The earliest **matchday with no ticket yet** is chosen. A day that any existing ticket already touches is left alone, so a fixture is never counted twice and two slips never compete for the same evening.
-- Every generated ticket is flagged `"generated": true` in `picks/tickets.json` and carries the same multiples (double, treble, all legs) as a hand-written one.
-- The file is committed by a dedicated `publish-ticket` job — the only job with write access — with the message `ticket: <date>, selected before kick-off`. That commit is the timestamp. Nothing is ever edited or removed afterwards, and a reason to change a slip is a new ticket for a later day.
+- Up to **six** of the week's strongest qualifying games go on the slip, each from a different match, and the multiples (double, treble, all legs) combine them for anyone who wants the bigger price.
+- The earliest **week with no ticket yet** is chosen, identified as `2026-W49` (ISO week, Monday to Sunday). A fixture already on another ticket is never repeated, so a second slip can be added inside the same week without double-counting anything.
+- Every generated ticket is flagged `"generated": true` in `picks/tickets.json` and is settled exactly like a hand-written one.
+- The file is committed by a dedicated `publish-ticket` job — the only job with write access — with the message `ticket: <week>, selected before kick-off`. That commit is the timestamp. Nothing is ever edited or removed after it has been played.
 
-If a day has no fixture above the threshold, no ticket is invented for it; the site and the group say so instead.
+If a week has no fixture above the threshold, no ticket is invented for it; the site and the group say so instead.
 
 ### Multiples on the same ticket
 

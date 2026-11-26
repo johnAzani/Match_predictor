@@ -199,28 +199,6 @@
           ]
         }
       ]
-    },
-    {
-      "id": "2026-11-30",
-      "label": "Monday 30 November 2026",
-      "selectedAt": "2026-11-26T11:05:53.112Z",
-      "generated": true,
-      "note": "Selected automatically from the model's eligible picks for this day and written before the first kick-off. Each selection is scored on its own; the multiples combine them into one slip, where every leg must win.",
-      "selections": [
-        {
-          "id": "2026-11-30-1",
-          "date": "2026-11-30",
-          "league": "Serie A",
-          "home": "Cagliari",
-          "away": "AC Milan",
-          "market": "1X2",
-          "side": "away",
-          "label": "AC Milan win",
-          "probability": 0.571902,
-          "fairOdds": 1.75,
-          "requiredPrice": 1.75
-        }
-      ]
     }
   ]
 }
