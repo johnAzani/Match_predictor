@@ -88,10 +88,15 @@ describe('ticket panel', () => {
     expect(within(row).getByText(/related bets/)).toBeInTheDocument()
   })
 
-  it('renders the committed ticket by default', () => {
+  it('renders every committed ticket, newest first', () => {
     render(<Ticket tracker={tracker([])} />)
     expect(screen.getByText(/TICKET 2026-11-27/)).toBeInTheDocument()
-    expect(screen.getAllByRole('row')).toHaveLength(6)
-    expect(screen.getAllByText('AWAITING LEDGER')).toHaveLength(5)
+    expect(screen.getByText(/TICKET 2026-11-29/)).toBeInTheDocument()
+    // Two tables: 6 rows for the weekend ticket (5 selections + header) and 5
+    // for Sunday's (4 selections + header).
+    expect(screen.getAllByRole('row')).toHaveLength(11)
+    expect(screen.getAllByText('AWAITING LEDGER')).toHaveLength(9)
+    const ids = screen.getAllByText(/TICKET 2026-11-/).map((node) => node.textContent)
+    expect(ids).toEqual(['TICKET 2026-11-29', 'TICKET 2026-11-27'])
   })
 })

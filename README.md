@@ -96,6 +96,7 @@ A ticket can also publish **multiples**: two or more of those same selections co
 
 - **Legs must come from different matches.** Two markets on one fixture are related bets, not independent ones, so their probabilities cannot be multiplied. A multiple that names the same fixture twice is refused (`REFUSED` in the panel) instead of being priced, and it is never posted to Telegram.
 - **Every leg must win.** One lost leg loses the whole slip immediately; the slip stops being live as soon as that result lands. A leg that pushes is voided, and the slip falls back to the price of the remaining legs.
+- **More than one ticket can be live at once.** Each entry in `picks/tickets.json` is dated, the site lists them newest first, and the group message carries every slip that still has a leg to play (up to two) instead of only the latest — so a Sunday slip never hides the weekend one that is still running.
 - **The point is the visible cost.** A two-leg double on the strongest selection of each day lands about 40% of the time; the full five-leg slip needs all five and lands about 8 times in 100. The panel and the group message show the combined chance and the minimum price for each slip, and each one is settled from the same ledger as the singles — so chasing the big price can be checked against its own record rather than assumed.
 
 Multiples are tracked evidence, not a staking plan: the ₦100-a-day rule still applies to the whole day, and the site never presents a long slip's price as a way to make money.

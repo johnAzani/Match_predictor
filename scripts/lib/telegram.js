@@ -108,31 +108,46 @@ function resultLines(results) {
   ]
 }
 
-function recordLines(record, ticket) {
+function recordLines(record, totals, shownSelections) {
   const lines = [heading('📈', 'Record')]
   lines.push(record && record.scored > 0
     ? `<b>${(100 * record.correct / record.scored).toFixed(1)}%</b> · ${record.correct} of ${record.scored} correct`
     : 'No scored picks yet')
-  if (ticket?.totals && ticket.totals.selections > ticket.selections.length) {
-    lines.push(`Tickets ${ticket.totals.won}–${ticket.totals.lost} · ${ticket.totals.selections} selections`)
+  if (totals && totals.selections > shownSelections) {
+    lines.push(`Tickets ${totals.won}–${totals.lost} · ${totals.selections} selections`)
   }
   return lines
 }
 
+// The group follows the slips it is actually holding: every ticket that still has
+// a leg to play, newest first, capped so the message stays readable. When the
+// whole slate is settled, the newest ticket is shown so the section is not empty.
+export function liveTickets(summarized, limit = 2) {
+  const slips = Array.isArray(summarized) ? summarized : []
+  const live = slips.filter((ticket) => (ticket.pending ?? 0) + (ticket.unrecorded ?? 0) > 0)
+  // Soonest kick-off first: the slip being played tonight is the one to read first.
+  const ordered = live.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))
+  return (live.length ? ordered : slips).slice(0, limit)
+}
+
 /**
- * The message posted to the group: the day's pick, the bookable ticket, the
- * latest scores and the running record. Empty sections are dropped rather than
- * filled with "nothing today", and nothing is invented.
+ * The message posted to the group: the day's pick, every ticket that still has a
+ * leg to play, the latest scores and the running record. `ticket` is the older
+ * single-slip form; `tickets` carries several slips at once. Empty sections are
+ * dropped rather than filled with "nothing today", and nothing is invented.
  */
-export function buildUpdate({ day, pick, results = [], record, ticket, siteUrl }) {
+export function buildUpdate({ day, pick, results = [], record, ticket, tickets, totals, siteUrl }) {
+  const slips = (Array.isArray(tickets) ? tickets : ticket ? [ticket] : []).filter(Boolean)
+  const ledger = totals ?? ticket?.totals ?? null
+  const selections = slips.flatMap((slip) => slip.selections ?? [])
   const lines = [
     `<b>Pitchside</b> · ${escapeHtml(day)}`,
     '',
     ...pickLines(pick),
-    ...ticketLines(ticket),
-    ...resultLines(withoutTicketMatches(results, ticket?.selections ?? [])),
+    ...slips.flatMap((slip) => ticketLines(slip)),
+    ...resultLines(withoutTicketMatches(results, selections)),
     '',
-    ...recordLines(record, ticket),
+    ...recordLines(record, ledger, selections.length),
   ]
   if (siteUrl) lines.push('', `<a href="${escapeHtml(siteUrl)}">Full record and method →</a>`)
   const text = lines.join('\n')

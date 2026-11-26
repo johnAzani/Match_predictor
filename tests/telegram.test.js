@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildUpdate, escapeHtml, explainDeliveryError, postTelegram, requiredPrice, withoutTicketMatches } from '../scripts/lib/telegram.js'
+import { buildUpdate, escapeHtml, explainDeliveryError, liveTickets, postTelegram, requiredPrice, withoutTicketMatches } from '../scripts/lib/telegram.js'
 
 const pick = {
   pick: 'home',
@@ -138,6 +138,44 @@ describe('telegram formatting', () => {
     expect(text).not.toContain('Werder Bremen 2–0')
     expect(text).toContain('❌ Levante 1–1 Elche · Levante win')
     expect(text).toContain('❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win')
+  })
+
+  it('posts two slips when both still have a leg to play', () => {
+    const sunday = {
+      id: '2026-11-29',
+      won: 0, lost: 0, push: 0,
+      selections: [
+        { day: 'Sun 29 Nov', home: 'Roma', away: 'Monza', fixture: 'Roma v Monza', pick: 'Roma win', probability: '69%', need: '1.46', state: 'pending', score: null },
+      ],
+    }
+    const text = buildUpdate({
+      day: 'Fri 27 Nov 2026', pick, results: [], record,
+      tickets: [pendingTicket, sunday],
+      totals: { won: 0, lost: 0, selections: 3 },
+    })
+    expect(text).toContain('<b>🎫 Ticket 2026-11-27</b>')
+    expect(text).toContain('<b>🎫 Ticket 2026-11-29</b>')
+    // Every leg is shown, and the ledger tally is left out because all of it is
+    // already on the message.
+    expect(text).toContain('▫️ Sun 29 Nov · Roma v Monza → Roma win, 69%, min 1.46')
+    expect(text).not.toContain('Tickets 0–0')
+  })
+
+  it('shows the slips still in play and hides the ones already settled', () => {
+    const summarized = [
+      { id: '2026-11-29', pending: 4, unrecorded: 0 },
+      { id: '2026-11-27', pending: 0, unrecorded: 0 },
+      { id: '2026-11-21', pending: 0, unrecorded: 0 },
+    ]
+    expect(liveTickets(summarized).map((ticket) => ticket.id)).toEqual(['2026-11-29'])
+    // Two live slips are shown soonest-first, so the one in play tonight is read first.
+    expect(liveTickets([
+      { id: '2026-11-29', pending: 4, unrecorded: 0 },
+      { id: '2026-11-27', pending: 5, unrecorded: 0 },
+    ]).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-29'])
+    // With everything settled, the newest slip is still shown.
+    expect(liveTickets(summarized.slice(1)).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-21'])
+    expect(liveTickets([])).toEqual([])
   })
 
   it('never exceeds the Telegram limit', () => {
