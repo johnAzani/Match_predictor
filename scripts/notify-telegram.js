@@ -2,7 +2,7 @@ import { appendFile, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { assessDailyData, chooseDailyPick, nigeriaDay } from '../src/lib/dailyPicks.js'
 import { outcome, summarizeTracker } from '../src/lib/tracker.js'
-import { summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
+import { legName, summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
 import { buildUpdate, postTelegram } from './lib/telegram.js'
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
@@ -66,6 +66,17 @@ function ticketUpdate(tickets, records) {
         ? `${selection.home} ${selection.score} ${selection.away}`
         : null,
     })),
+    // Only the multiples that are actually bookable: a slip whose legs share a
+    // fixture is refused rather than posted with a wrong price.
+    multiples: (latest.multiples ?? [])
+      .filter((multiple) => multiple.state !== 'invalid')
+      .map((multiple) => ({
+        short: multiple.short ?? multiple.label,
+        legs: multiple.legs.map(legName),
+        probability: multiple.probability === null ? '—' : (multiple.probability * 100).toFixed(1),
+        need: multiple.requiredPrice === null ? 'the fair price' : multiple.requiredPrice.toFixed(2),
+        state: multiple.state,
+      })),
   }
 }
 

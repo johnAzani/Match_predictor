@@ -1,12 +1,12 @@
 {
   "version": 1,
-  "note": "Selections committed before kick-off. Every selection is judged on its own — the ticket is never an accumulator, and no selection is edited or removed after it has been played.",
+  "note": "Selections committed before kick-off and never edited or removed once played. Each one is scored as a single. The multiples listed under a ticket combine those same singles into one slip; every leg comes from a different match, and no leg is ever two markets on the same fixture.",
   "tickets": [
     {
       "id": "2026-11-27",
       "label": "Weekend of 27–29 November 2026",
       "selectedAt": "2026-11-25T18:05:00.000Z",
-      "note": "Five independent singles. If you follow the ₦100-a-day rule, play only the best selection on each day: Werder Bremen on Friday, Mainz on Saturday. The others are tracked for accuracy, not for staking.",
+      "note": "Five singles, each scored on its own. If you follow the ₦100-a-day rule, the safest way to use them is the two-leg double on the best selection from each day, or a single on Werder Bremen on Friday. The five-leg multiple is tracked so the cost of chasing the big price is visible, not because it is a plan.",
       "selections": [
         {
           "id": "2026-11-27-1",
@@ -72,6 +72,26 @@
           "probability": 0.59,
           "fairOdds": 1.69,
           "requiredPrice": 1.7
+        }
+      ],
+      "multiples": [
+        {
+          "id": "2026-11-27-double",
+          "short": "Double",
+          "label": "Two-leg double — the best selection from each day",
+          "legs": ["2026-11-27-1", "2026-11-28-1"]
+        },
+        {
+          "id": "2026-11-27-treble",
+          "short": "Treble",
+          "label": "Three-leg treble — both days, one more leg",
+          "legs": ["2026-11-27-1", "2026-11-28-1", "2026-11-28-2"]
+        },
+        {
+          "id": "2026-11-27-fivefold",
+          "short": "All five",
+          "label": "Five-leg multiple — tracked, not recommended",
+          "legs": ["2026-11-27-1", "2026-11-27-2", "2026-11-28-1", "2026-11-28-2", "2026-11-28-3"]
         }
       ]
     }

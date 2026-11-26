@@ -61,6 +61,33 @@ describe('ticket panel', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 
+  it('shows a multiple as one slip with the combined price', () => {
+    const withMultiple = [{
+      ...tickets[0],
+      multiples: [{ id: 'm', short: 'Double', label: 'Two-leg double', legs: ['a', 'c'] }],
+    }]
+    render(<Ticket tracker={tracker(records)} tickets={withMultiple} />)
+    expect(screen.getByText('MULTIPLES')).toBeInTheDocument()
+    expect(screen.getByText('3 singles scored one by one · 1 multiple below')).toBeInTheDocument()
+    const row = screen.getByText('Two-leg double').closest('li')
+    expect(within(row).getByText(/2 legs · Werder Bremen \+ Real Betis/)).toBeInTheDocument()
+    // 0.68 * 0.59 = 40.1%, which needs 2.50 rather than the fair 2.49.
+    expect(within(row).getByText('40.1%')).toBeInTheDocument()
+    expect(within(row).getByText('min 2.50')).toBeInTheDocument()
+    expect(within(row).getByText('LOST')).toBeInTheDocument()
+  })
+
+  it('refuses a multiple whose legs are on the same match', () => {
+    const sameGame = [{
+      ...tickets[0],
+      multiples: [{ id: 'x', label: 'Same match', legs: ['a', 'a'] }],
+    }]
+    render(<Ticket tracker={tracker(records)} tickets={sameGame} />)
+    const row = screen.getByText('Same match').closest('li')
+    expect(within(row).getByText('REFUSED')).toBeInTheDocument()
+    expect(within(row).getByText(/related bets/)).toBeInTheDocument()
+  })
+
   it('renders the committed ticket by default', () => {
     render(<Ticket tracker={tracker([])} />)
     expect(screen.getByText(/TICKET 2026-11-27/)).toBeInTheDocument()

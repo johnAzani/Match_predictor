@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { findRecord, normalizeName, settleSelection, summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
+import { findRecord, legName, normalizeName, settleSelection, summarizeMultiple, summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
+import ticketData from '../picks/tickets.json'
 
 const team = (name, shortName = name) => ({ name, shortName, crest: null, goalsFor: 1.5, goalsAgainst: 1.2, sampleSize: 5, form: ['W', 'D', 'L'] })
 
@@ -117,5 +118,74 @@ describe('ticket summary', () => {
   it('has no hit rate before anything is decided', () => {
     const empty = summarizeTickets([], records)
     expect(empty).toMatchObject({ selections: 0, won: 0, decided: 0, hitRate: null })
+  })
+})
+
+describe('a multiple on the same ticket', () => {
+  const leg = (id, home, away, probability, state = 'pending', overrides = {}) => ({
+    id, home, away, side: 'home', market: '1X2', label: `${home} win`, probability, state, ...overrides,
+  })
+  const legs = [
+    leg('a', 'Werder Bremen', "M'gladbach", 0.68),
+    leg('b', 'Mainz', 'Union Berlin', 0.6),
+  ]
+
+  it('multiplies the legs and rounds the price up, never down', () => {
+    const combined = summarizeMultiple({ id: 'd', short: 'Double', legs: ['a', 'b'] }, legs)
+    expect(combined.probability).toBeCloseTo(0.408, 12)
+    expect(combined.fairOdds).toBeCloseTo(1 / 0.408, 10)
+    // 1 / 0.408 = 2.4509, so 2.45 would be a losing price.
+    expect(combined.requiredPrice).toBe(2.46)
+    expect(combined.state).toBe('pending')
+  })
+
+  it('refuses two legs on the same match, because they are related bets', () => {
+    const related = [leg('a', 'Mainz', 'Union Berlin', 0.6), leg('b', 'Mainz', 'Union Berlin', 0.79, 'pending', { market: 'DC' })]
+    const combined = summarizeMultiple({ id: 'x', legs: ['a', 'b'] }, related)
+    expect(combined.state).toBe('invalid')
+    expect(combined.probability).toBeNull()
+    expect(combined.note).toMatch(/related bets/)
+  })
+
+  it('is won only when every leg wins, and lost as soon as one loses', () => {
+    const won = summarizeMultiple({ id: 'd', legs: ['a', 'b'] }, legs.map((l) => ({ ...l, state: 'won' })))
+    expect(won).toMatchObject({ state: 'won', voids: 0 })
+    const lost = summarizeMultiple({ id: 'd', legs: ['a', 'b'] }, [legs[0], { ...legs[1], state: 'lost' }])
+    expect(lost.state).toBe('lost')
+  })
+
+  it('drops a voided leg and prices the rest', () => {
+    const combined = summarizeMultiple({ id: 'd', legs: ['a', 'b'] }, [{ ...legs[0], state: 'won' }, { ...legs[1], state: 'push' }])
+    expect(combined).toMatchObject({ state: 'won', voids: 1 })
+    expect(combined.probability).toBeCloseTo(0.68, 12)
+    expect(combined.requiredPrice).toBe(1.48)
+  })
+
+  it('ignores a leg that is not on the ticket and needs two real legs', () => {
+    expect(summarizeMultiple({ id: 'd', legs: ['a', 'ghost'] }, legs).state).toBe('invalid')
+  })
+
+  it('lists the club each leg backs', () => {
+    expect(legName(legs[0])).toBe('Werder Bremen')
+    expect(legName({ ...legs[0], market: 'AH1', side: 'home', label: 'Mainz +1' })).toBe('Mainz +1')
+  })
+
+  it('is carried through the ticket summary', () => {
+    const summary = summarizeTicket({ id: 't', selections: legs, multiples: [{ id: 'd', legs: ['a', 'b'] }] }, [])
+    expect(summary.multiples).toHaveLength(1)
+    expect(summary.multiples[0].legs.map((item) => item.id)).toEqual(['a', 'b'])
+  })
+})
+
+describe('the committed tickets', () => {
+  it('only multiplies legs from different matches, and every leg exists', () => {
+    for (const ticket of ticketData.tickets) {
+      const summary = summarizeTicket(ticket, [])
+      for (const multiple of summary.multiples) {
+        const declared = (ticket.multiples ?? []).find((item) => item.id === multiple.id)
+        expect(multiple.state, `${multiple.id} is not bookable`).not.toBe('invalid')
+        expect(multiple.legs.map((item) => item.id)).toEqual(declared.legs)
+      }
+    }
   })
 })
