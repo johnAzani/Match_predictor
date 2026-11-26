@@ -161,6 +161,40 @@ describe('telegram formatting', () => {
     expect(text).not.toContain('Tickets 0–0')
   })
 
+  it('orders slips by their next game, not by their name', () => {
+    const slip = (id, date) => ({ id, pending: 1, unrecorded: 0, selectedAt: '2026-11-26T00:00:00Z', selections: [{ date, state: 'pending' }] })
+    // A week slip is named last but its first leg is days after tonight's game.
+    expect(liveTickets([slip('2026-W49', '2026-12-04'), slip('2026-11-27', '2026-11-27')]).map((ticket) => ticket.id))
+      .toEqual(['2026-11-27', '2026-W49'])
+
+    const weekSlip = {
+      id: '2026-W49', won: 0, lost: 0, push: 0,
+      selections: [{ day: 'Fri 4 Dec', home: 'Bayern', away: 'Paderborn', fixture: 'Bayern v Paderborn', pick: 'Bayern win', probability: '75%', need: '1.33', state: 'pending', score: null }],
+    }
+    const text = buildUpdate({ day: 'Thu 26 Nov 2026', pick, results: [], record, tickets: [pendingTicket, weekSlip] })
+    expect(text.indexOf('🎫 Ticket 2026-11-27')).toBeLessThan(text.indexOf('🎫 Ticket 2026-W49'))
+  })
+
+  it('keeps the newest slip when there are more than three', () => {
+    const slip = (id, date, selectedAt) => ({ id, pending: 1, unrecorded: 0, selectedAt, selections: [{ date, state: 'pending' }] })
+    const live = [
+      slip('2026-11-27', '2026-11-27', '2026-11-25T00:00:00Z'),
+      slip('2026-11-28', '2026-11-28', '2026-11-25T00:00:00Z'),
+      slip('2026-11-29', '2026-11-29', '2026-11-25T00:00:00Z'),
+      slip('2026-W49', '2026-12-04', '2026-11-26T12:00:00Z'),
+    ]
+    expect(liveTickets(live).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-28', '2026-W49'])
+  })
+
+  it('counts the slips it could not fit instead of hiding them', () => {
+    const text = buildUpdate({
+      day: 'Thu 26 Nov 2026', pick, results: [], record,
+      tickets: [pendingTicket],
+      totals: { won: 0, lost: 0, selections: 2, live: 4 },
+    })
+    expect(text).toContain('<i>+3 more slips on the site</i>')
+  })
+
   it('shows the slips still in play and hides the ones already settled', () => {
     const summarized = [
       { id: '2026-11-29', pending: 4, unrecorded: 0 },

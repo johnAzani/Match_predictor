@@ -122,12 +122,38 @@ function recordLines(record, totals, shownSelections) {
 // The group follows the slips it is actually holding: every ticket that still has
 // a leg to play, newest first, capped so the message stays readable. When the
 // whole slate is settled, the newest ticket is shown so the section is not empty.
-export function liveTickets(summarized, limit = 2) {
+export const LIVE_SLIP_LIMIT = 3
+
+// The next game on a slip still to be settled. A week slip's first leg can be
+// days away, so its id would sort it wrongly against tonight's slip.
+function nextFixtureDate(ticket) {
+  const dates = (ticket.selections ?? [])
+    .filter((selection) => !selection.state || selection.state === 'pending' || selection.state === 'unrecorded')
+    .map((selection) => selection.date)
+    .filter(Boolean)
+    .sort()
+  return dates[0] ?? '9999-12-31'
+}
+
+const byNextGame = (a, b) => nextFixtureDate(a).localeCompare(nextFixtureDate(b)) || String(a.id).localeCompare(String(b.id))
+
+export function liveTickets(summarized, limit = LIVE_SLIP_LIMIT) {
   const slips = Array.isArray(summarized) ? summarized : []
   const live = slips.filter((ticket) => (ticket.pending ?? 0) + (ticket.unrecorded ?? 0) > 0)
-  // Soonest kick-off first: the slip being played tonight is the one to read first.
-  const ordered = live.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))
-  return (live.length ? ordered : slips).slice(0, limit)
+  if (!live.length) return slips.slice(0, limit)
+
+  // Soonest kick-off first: the slip being played tonight is read first.
+  const ordered = live.slice().sort(byNextGame)
+  if (ordered.length <= limit) return ordered
+
+  // A cap must never bury the newest slip: it is the one that can still be
+  // booked. It takes the last slot, and the rest are counted, not hidden.
+  const newest = live.reduce((best, ticket) => (
+    String(ticket.selectedAt ?? ticket.id) > String(best.selectedAt ?? best.id) ? ticket : best
+  ), live[0])
+  const shown = ordered.slice(0, limit)
+  if (!shown.includes(newest)) shown[shown.length - 1] = newest
+  return shown.sort(byNextGame)
 }
 
 /**
@@ -140,11 +166,13 @@ export function buildUpdate({ day, pick, results = [], record, ticket, tickets, 
   const slips = (Array.isArray(tickets) ? tickets : ticket ? [ticket] : []).filter(Boolean)
   const ledger = totals ?? ticket?.totals ?? null
   const selections = slips.flatMap((slip) => slip.selections ?? [])
+  const hidden = Math.max(0, (ledger?.live ?? 0) - slips.length)
   const lines = [
     `<b>Pitchside</b> · ${escapeHtml(day)}`,
     '',
     ...pickLines(pick),
     ...slips.flatMap((slip) => ticketLines(slip)),
+    ...(hidden > 0 ? [`<i>+${hidden} more slip${hidden === 1 ? '' : 's'} on the site</i>`] : []),
     ...resultLines(withoutTicketMatches(results, selections)),
     '',
     ...recordLines(record, ledger, selections.length),

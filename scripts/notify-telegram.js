@@ -79,7 +79,7 @@ function ticketUpdate(tickets, records) {
       })),
   })
   return {
-    totals: { won: totals.won, lost: totals.lost, selections: totals.selections },
+    totals: { won: totals.won, lost: totals.lost, selections: totals.selections, live: liveTickets(summarized, Infinity).length },
     tickets: shown.map(format),
   }
 }
