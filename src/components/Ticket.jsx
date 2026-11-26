@@ -6,6 +6,10 @@ import { MARKET_LABELS, legName, summarizeTickets } from '../lib/ticket.js'
 const percent = (value) => (value === null || value === undefined ? '—' : `${(value * 100).toFixed(1)}%`)
 const price = (value) => (Number.isFinite(value) ? value.toFixed(2) : '—')
 
+// Daily tickets would otherwise turn the panel into a scroll of old slips; the
+// score above always covers every ticket, whatever is listed here.
+const RECENT_LIMIT = 6
+
 const STATUS_LABELS = Object.freeze({
   won: 'WON',
   lost: 'LOST',
@@ -48,7 +52,7 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
           <strong>NO TICKET YET</strong>
           <p>The first ticket will be published here before its matches kick off.</p>
         </div>
-      ) : summary.tickets.map((ticket) => (
+      ) : summary.tickets.slice(0, RECENT_LIMIT).map((ticket) => (
         <div className="ticket__sheet" key={ticket.id}>
           <div className="ticket__sheet-head">
             <div><span>TICKET {ticket.id}</span><strong>{ticket.label}</strong></div>
@@ -107,6 +111,13 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
           {ticket.note && <p className="ticket__note">{ticket.note}</p>}
         </div>
       ))}
+
+      {summary.tickets.length > RECENT_LIMIT && (
+        <p className="ticket__note">
+          Showing the {RECENT_LIMIT} most recent of {summary.tickets.length} tickets. The score above and the
+          hit rate cover every ticket in the ledger.
+        </p>
+      )}
 
       <p className="ticket__footnote">
         Selections are committed to <code>picks/tickets.json</code> before kick-off, so the commit history is the timestamp. Each one is scored as a single against the public ledger, and its multiples are settled from those same legs: a draw wins <strong>+0.5</strong>, a one-goal defeat returns the stake on <strong>+1</strong>, and a push is not counted as a win. No odds are supplied — “needs” is the fair price implied by the model probability, and a price below it is a losing bet even when the selection wins. {published ? '' : 'Local previews are not scored.'}
