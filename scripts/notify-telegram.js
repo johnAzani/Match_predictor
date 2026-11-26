@@ -91,7 +91,7 @@ async function main() {
   const result = await postTelegram({ token, chatId, text })
   if (!result.ok) {
     // Never print the token or the chat id: the description is enough to trace.
-    await reportFailure(`Telegram delivery failed: ${result.reason}`)
+    await reportFailure(`Telegram delivery failed: ${result.description ?? 'unknown error'} — ${result.reason}`)
     return
   }
   const stepSummary = process.env.GITHUB_STEP_SUMMARY
