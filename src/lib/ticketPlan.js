@@ -52,7 +52,13 @@ const addDays = (date, days) => {
 }
 
 const teamName = (team) => team?.shortName ?? team?.name ?? ''
-const fixtureKey = (home, away, date) => `${date}|${normalizeName(home)}|${normalizeName(away)}`
+
+// Sources disagree on club names ("Barcelona" and "FC Barcelona"), so two
+// fixtures are the same when the dates match and each club completes the other.
+const sameClub = (a, b) => a === b || a.endsWith(b) || b.endsWith(a)
+export const sameFixture = (a, b) => a.date === b.date &&
+  sameClub(normalizeName(a.home), normalizeName(b.home)) &&
+  sameClub(normalizeName(a.away), normalizeName(b.away))
 const round = (value, places) => Number(value.toFixed(places))
 
 function requiredPrice(probability) {
@@ -134,17 +140,26 @@ export function planTicket({
   leadTime = LEAD_TIME,
   maxSelections = MAX_SELECTIONS,
 } = {}) {
-  const coveredWeeks = new Set(tickets.map((ticket) => ticket.id))
-  const takenFixtures = new Set()
+  // A week counts as covered when any ticket already has a fixture in it, so the
+  // planner always looks at the week ahead instead of re-packing a week that is
+  // already being played.
+  const takenFixtures = []
+  const coveredWeeks = new Set()
   for (const ticket of tickets) {
+    coveredWeeks.add(ticket.id)
     for (const selection of ticket.selections ?? []) {
-      takenFixtures.add(fixtureKey(selection.home, selection.away, selection.date))
+      takenFixtures.push({ date: selection.date, home: selection.home, away: selection.away })
+      if (selection.date) coveredWeeks.add(isoWeek(selection.date).key)
     }
   }
 
   const picks = eligiblePicks(fixtures, { now, threshold, leadTime }).filter((pick) => {
-    const { fixture } = pick
-    return !takenFixtures.has(fixtureKey(teamName(fixture.home), teamName(fixture.away), fixture.date))
+    const candidate = {
+      date: pick.fixture.date,
+      home: teamName(pick.fixture.home),
+      away: teamName(pick.fixture.away),
+    }
+    return !takenFixtures.some((taken) => sameFixture(taken, candidate))
   })
 
   const byWeek = new Map()
@@ -159,12 +174,16 @@ export function planTicket({
   const { week, picks: weekPicks } = byWeek.get(weekKey)
 
   // One fixture can only appear once, however the feed is ordered.
-  const seen = new Set()
+  const seen = []
   const chosen = weekPicks
     .filter((pick) => {
-      const key = fixtureKey(teamName(pick.fixture.home), teamName(pick.fixture.away), pick.fixture.date)
-      if (seen.has(key)) return false
-      seen.add(key)
+      const candidate = {
+        date: pick.fixture.date,
+        home: teamName(pick.fixture.home),
+        away: teamName(pick.fixture.away),
+      }
+      if (seen.some((other) => sameFixture(other, candidate))) return false
+      seen.push(candidate)
       return true
     })
     .slice(0, maxSelections)

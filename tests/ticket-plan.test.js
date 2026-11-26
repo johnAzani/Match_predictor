@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LEAD_TIME, TICKET_THRESHOLD, eligiblePicks, isoWeek, planTicket } from '../src/lib/ticketPlan.js'
+import { LEAD_TIME, TICKET_THRESHOLD, eligiblePicks, isoWeek, planTicket, sameFixture } from '../src/lib/ticketPlan.js'
 
 // A fixture shaped like the published snapshot's, so the real model runs.
 function fixture({ home = 'Home', away = 'Away', date = '2026-11-29', time = '15:00', league = 'Serie A', strengths = [1.5, 1.5] } = {}) {
@@ -67,7 +67,7 @@ describe('planning the week ticket', () => {
   ]
 
   it('writes one slip for the whole week, not one per day', () => {
-    const midweek = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.9, 2.4] })]
+    const midweek = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.7, 2.8] })]
     const plan = planTicket({ fixtures: [...sunday, ...midweek], tickets: [], now: NOW })
     expect(plan.id).toBe('2026-W48')
     expect(plan.label).toBe('Week of 23 Nov – 29 Nov 2026')
@@ -81,11 +81,30 @@ describe('planning the week ticket', () => {
     expect(planTicket({ fixtures: sunday, tickets: [existing], now: NOW })).toBeNull()
   })
 
-  it('adds a second slip in the same week without repeating a fixture', () => {
+  it('skips a week that any ticket already touches, whatever its id', () => {
+    // A hand-written slip for one day still means that week is being played.
     const taken = { id: '2026-11-27', selections: [{ date: '2026-11-29', home: 'Roma', away: 'Monza' }] }
-    const plan = planTicket({ fixtures: sunday, tickets: [taken], now: NOW })
-    expect(plan.id).toBe('2026-W48')
-    expect(plan.selections.map((selection) => selection.home)).toEqual(['Brighton', 'Sassuolo'])
+    expect(planTicket({ fixtures: sunday, tickets: [taken], now: NOW })).toBeNull()
+    // The week after is planned instead.
+    const next = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.7, 2.8] })]
+    expect(planTicket({ fixtures: [...sunday, ...next], tickets: [taken], now: NOW }).id).toBe('2026-W49')
+  })
+
+  it('treats two spellings of the same club as one fixture', () => {
+    expect(sameFixture(
+      { date: '2026-11-29', home: 'Deportivo', away: 'FC Barcelona' },
+      { date: '2026-11-29', home: 'Deportivo', away: 'Barcelona' },
+    )).toBe(true)
+    expect(sameFixture(
+      { date: '2026-11-29', home: 'Roma', away: 'Monza' },
+      { date: '2026-11-30', home: 'Roma', away: 'Monza' },
+    )).toBe(false)
+  })
+
+  it('collapses a fixture the feed lists twice', () => {
+    const duplicated = [sunday[0], sunday[0], sunday[1]]
+    const plan = planTicket({ fixtures: duplicated, tickets: [], now: NOW })
+    expect(plan.selections.map((selection) => selection.home)).toEqual(['Roma', 'Brighton'])
   })
 
   it('never reuses a fixture and never exceeds six selections', () => {
