@@ -55,6 +55,8 @@ function ticketUpdate(tickets, records) {
     totals: { won: totals.won, lost: totals.lost, selections: totals.selections },
     selections: latest.selections.map((selection) => ({
       day: shortDay(selection.date),
+      home: selection.home,
+      away: selection.away,
       fixture: `${selection.home} v ${selection.away}`,
       pick: selection.label,
       probability: `${Math.round(selection.probability * 100)}%`,

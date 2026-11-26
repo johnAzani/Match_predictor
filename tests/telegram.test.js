@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildUpdate, escapeHtml, explainDeliveryError, postTelegram, requiredPrice } from '../scripts/lib/telegram.js'
+import { buildUpdate, escapeHtml, explainDeliveryError, postTelegram, requiredPrice, withoutTicketMatches } from '../scripts/lib/telegram.js'
 
 const pick = {
   pick: 'home',
@@ -21,8 +21,8 @@ const pendingTicket = {
   label: 'Weekend of 27–29 November 2026',
   won: 0, lost: 0, push: 0,
   selections: [
-    { day: 'Fri 27 Nov', fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'pending', score: null },
-    { day: 'Sat 28 Nov', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'pending', score: null },
+    { day: 'Fri 27 Nov', home: 'Werder Bremen', away: "M'gladbach", fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'pending', score: null },
+    { day: 'Sat 28 Nov', home: 'Mainz', away: 'Union Berlin', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'pending', score: null },
   ],
 }
 
@@ -31,8 +31,8 @@ const settledTicket = {
   label: 'Weekend of 27–29 November 2026',
   won: 1, lost: 1, push: 0,
   selections: [
-    { day: 'Fri 27 Nov', fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'won', score: 'Werder Bremen 2 : 0 M\'gladbach' },
-    { day: 'Sat 28 Nov', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'lost', score: 'Mainz 0 : 1 Union Berlin' },
+    { day: 'Fri 27 Nov', home: 'Werder Bremen', away: "M'gladbach", fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'won', score: 'Werder Bremen 2 : 0 M\'gladbach' },
+    { day: 'Sat 28 Nov', home: 'Mainz', away: 'Union Berlin', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'lost', score: 'Mainz 0 : 1 Union Berlin' },
   ],
 }
 
@@ -53,43 +53,57 @@ describe('telegram formatting', () => {
 
   it('posts the single, the latest scores and the record', () => {
     const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results, record, siteUrl: 'https://example.test/record' })
-    expect(text).toContain('Pitchside — Fri 27 Nov 2026')
-    expect(text).toContain('Mainz to win — 60%')
-    expect(text).toContain('Only worth playing at 1.67 or better.')
-    expect(text).toContain('✔ Werder Bremen 2–0 M&#39;gladbach'.replace('&#39;', "'"))
-    expect(text).toContain('✘ Levante 1–1 Elche')
-    expect(text).toContain('69 of 117 correct (59.0%)')
+    expect(text).toContain('<b>Pitchside</b> · Fri 27 Nov 2026')
+    expect(text).toContain('<b>Mainz to win</b> — 60%')
+    expect(text).toContain('Min price 1.67')
+    expect(text).toContain("✅ Werder Bremen 2–0 M'gladbach · Werder Bremen win")
+    expect(text).toContain('❌ Levante 1–1 Elche · Levante win')
+    expect(text).toContain('59.0%</b> · 69 of 117 correct')
     expect(text).toContain('href="https://example.test/record"')
   })
 
   it('says so on a day with no pick instead of inventing one', () => {
     const text = buildUpdate({ day: 'Wed 25 Nov 2026', pick: null, results: [], record: { correct: 0, scored: 0 } })
-    expect(text).toContain('No verified, eligible match today.')
-    expect(text).toContain('No scored forecasts yet.')
-    expect(text).not.toContain('Only worth playing at')
+    expect(text).toContain('No eligible match today')
+    expect(text).toContain('No scored picks yet')
+    expect(text).not.toContain('Min price')
   })
 
   it('lists a pending ticket with the price each selection needs', () => {
     const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: [], record, ticket: pendingTicket })
-    expect(text).toContain('TICKET 2026-11-27</b> — Weekend of 27–29 November 2026')
-    expect(text).toContain('2 independent singles · never multiplied')
-    expect(text).toContain("• Fri 27 Nov · Werder Bremen v M'gladbach — Werder Bremen win · 68% · needs 1.48")
-    expect(text).toContain('2 still to settle')
-    expect(text).toContain('Book each one at the price shown or better')
+    expect(text).toContain('<b>🎫 Ticket 2026-11-27</b>')
+    expect(text).toContain('<i>2 singles · booked separately, never multiplied</i>')
+    expect(text).toContain("▫️ Fri 27 Nov · Werder Bremen v M'gladbach → Werder Bremen win, 68%, min 1.48")
+    expect(text).toContain('<i>2 to settle</i>')
+    expect(text).toContain('<i>Book each at its min price or better</i>')
   })
 
   it('replaces the price with the score once a selection has settled', () => {
     const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: settledTicket })
-    expect(text).toContain("✔ Fri 27 Nov · Werder Bremen 2 : 0 M'gladbach — Werder Bremen win")
-    expect(text).toContain("✘ Sat 28 Nov · Mainz 0 : 1 Union Berlin — Mainz win")
-    expect(text).toContain('1 won · 1 lost')
-    expect(text).not.toContain('Book each one at the price shown')
+    expect(text).toContain("✅ Fri 27 Nov · Werder Bremen 2 : 0 M'gladbach → Werder Bremen win")
+    expect(text).toContain("❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win")
+    expect(text).toContain('<i>1 won · 1 lost</i>')
+    expect(text).not.toContain('Book each at its min price')
   })
 
   it('adds the all-time ticket tally once there is more than one ticket', () => {
     const withTotals = { ...settledTicket, totals: { won: 4, lost: 3, selections: 9 } }
     const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: withTotals })
-    expect(text).toContain('All tickets: 4 won · 3 lost from 9 selections')
+    expect(text).toContain('Tickets 4–3 · 9 selections')
+  })
+
+  it('does not repeat a fixture that the ticket already scores', () => {
+    const settled = settledTicket.selections
+    const kept = withoutTicketMatches(results, settled)
+    // The Werder result is in the ticket; Levante is not.
+    expect(kept.map((result) => result.home)).toEqual(['Levante'])
+    expect(withoutTicketMatches(results, [])).toHaveLength(2)
+    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results, record, ticket: settledTicket })
+    // Werder is on the ticket, so its score is shown there and not repeated in
+    // the results list; Levante is not on the ticket, so it stays.
+    expect(text).not.toContain('Werder Bremen 2–0')
+    expect(text).toContain('❌ Levante 1–1 Elche · Levante win')
+    expect(text).toContain('❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win')
   })
 
   it('never exceeds the Telegram limit', () => {

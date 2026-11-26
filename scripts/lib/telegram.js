@@ -1,5 +1,7 @@
 // Telegram delivery. Everything here is pure formatting plus one HTTP call, so
 // the wording can be tested without a bot and the token never leaves the script.
+import { normalizeName } from '../../src/lib/ticket.js'
+
 export const TELEGRAM_API = 'https://api.telegram.org'
 export const MAX_MESSAGE_LENGTH = 4096
 
@@ -15,77 +17,94 @@ export function requiredPrice(probability) {
 }
 
 const price = (value) => (value === null ? '—' : value.toFixed(2))
+const heading = (emoji, label) => `<b>${emoji} ${label}</b>`
+const num = (value) => Number(value).toFixed(2)
 
 function pickLines(pick) {
-  if (!pick) return ['<b>TODAY’S SINGLE</b>', 'No verified, eligible match today. Some days have no pick.']
-  const name = pick.pick === 'draw'
-    ? 'Draw'
-    : `${pick.pick === 'home' ? pick.home : pick.away} to win`
-  const probability = pick.probability / 100
+  if (!pick) return [heading('🎯', 'Today’s pick'), '<i>No eligible match today</i>']
+  const name = pick.pick === 'draw' ? 'Draw' : `${pick.pick === 'home' ? pick.home : pick.away} to win`
   return [
-    '<b>TODAY’S SINGLE</b>',
-    `${escapeHtml(name)} — ${pick.probability}%`,
+    heading('🎯', 'Today’s pick'),
+    `<b>${escapeHtml(name)}</b> — ${pick.probability}%`,
     `${escapeHtml(pick.league)} · ${escapeHtml(pick.kickoff)}`,
-    `Only worth playing at ${price(requiredPrice(probability))} or better.`,
+    `Min price ${price(requiredPrice(pick.probability / 100))}`,
   ]
 }
 
-// Pending and not-yet-in-the-ledger look the same to a reader: not settled.
-const TICKET_MARKS = { won: '✔', lost: '✘', push: '➖', pending: '•', unrecorded: '•' }
+// One line per selection, so the whole slip can be read on a phone without
+// wrapping. Pending rows carry the price to book at; settled rows carry the
+// score that decided them.
+const PENDING_MARK = '▫️'
+const SETTLED_MARKS = { won: '✅', lost: '❌', push: '➖' }
 
-// The ticket is published so it can be booked, then scored so it can be
-// checked. Both views are the same list: a pending row shows the price it
-// needs, a settled row shows the score it got.
 function ticketLines(ticket) {
   if (!ticket || !ticket.selections?.length) return []
-  const pending = ticket.selections.filter((selection) => selection.state === 'pending' || selection.state === 'unrecorded')
+  const count = ticket.selections.length
+  const settled = ticket.won + ticket.lost + ticket.push
   const lines = [
-    `<b>TICKET ${escapeHtml(ticket.id)}</b>${ticket.label ? ` — ${escapeHtml(ticket.label)}` : ''}`,
-    `${ticket.selections.length} independent single${ticket.selections.length === 1 ? '' : 's'} · never multiplied`,
+    '',
+    heading('🎫', `Ticket ${escapeHtml(ticket.id)}`),
+    `<i>${count} single${count === 1 ? '' : 's'} · booked separately, never multiplied</i>`,
   ]
   for (const selection of ticket.selections) {
-    const mark = TICKET_MARKS[selection.state] ?? '•'
-    if (selection.state === 'won' || selection.state === 'lost' || selection.state === 'push') {
-      lines.push(`${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.score ?? '')} — ${escapeHtml(selection.pick)}`)
-    } else {
-      lines.push(`${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.fixture)} — ${escapeHtml(selection.pick)} · ${escapeHtml(selection.probability)} · needs ${escapeHtml(selection.need)}`)
-    }
+    const mark = SETTLED_MARKS[selection.state] ?? PENDING_MARK
+    lines.push(mark === PENDING_MARK
+      ? `${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.fixture)} → ${escapeHtml(selection.pick)}, ${escapeHtml(selection.probability)}, min ${escapeHtml(selection.need)}`
+      : `${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.score ?? '')} → ${escapeHtml(selection.pick)}`)
   }
-  const settled = ticket.won + ticket.lost + ticket.push
-  lines.push(settled
-    ? `${ticket.won} won · ${ticket.lost} lost${ticket.push ? ` · ${ticket.push} push` : ''}${ticket.selections.length > settled ? ` · ${ticket.selections.length - settled} to settle` : ''}`
-    : `${ticket.selections.length} still to settle`)
-  if (pending.length) lines.push('Book each one at the price shown or better — below it, a winning pick still loses money.')
-  if (ticket.totals && ticket.totals.selections > ticket.selections.length) {
-    lines.push(`All tickets: ${ticket.totals.won} won · ${ticket.totals.lost} lost from ${ticket.totals.selections} selections`)
-  }
-  return ['', ...lines]
+  const summary = settled
+    ? `${ticket.won} won · ${ticket.lost} lost${ticket.push ? ` · ${ticket.push} push` : ''}${count > settled ? ` · ${count - settled} to settle` : ''}`
+    : `${count} to settle`
+  lines.push('', `<i>${summary}</i>`)
+  if (settled === 0) lines.push('<i>Book each at its min price or better</i>')
+  return lines
+}
+
+// A ticket row already shows its own score, so repeating that fixture in the
+// results list is noise. Names differ between sources, so compare loosely.
+export function withoutTicketMatches(results, selections = []) {
+  const team = (a, b) => a === b || a.endsWith(b) || b.endsWith(a)
+  return results.filter((result) => !selections.some((selection) => selection.home && selection.away &&
+    team(normalizeName(result.home), normalizeName(selection.home)) &&
+    team(normalizeName(result.away), normalizeName(selection.away))))
 }
 
 function resultLines(results) {
-  if (!results.length) return ['<b>RESULTS</b>', 'No settled matches in the last day.']
+  if (!results.length) return []
   return [
-    '<b>RECENT RESULTS</b>',
-    ...results.map((result) => {
-      const score = `${result.homeGoals}–${result.awayGoals}`
-      const mark = result.correct ? '✔' : '✘'
-      return `${mark} ${escapeHtml(result.home)} ${score} ${escapeHtml(result.away)} — ${escapeHtml(result.pick)}`
-    }),
+    '',
+    heading('📋', 'Latest results'),
+    ...results.map((result) => `${result.correct ? '✅' : '❌'} ${escapeHtml(result.home)} ${result.homeGoals}–${result.awayGoals} ${escapeHtml(result.away)} · ${escapeHtml(result.pick)}`),
   ]
 }
 
+function recordLines(record, ticket) {
+  const lines = [heading('📈', 'Record')]
+  lines.push(record && record.scored > 0
+    ? `<b>${(100 * record.correct / record.scored).toFixed(1)}%</b> · ${record.correct} of ${record.scored} correct`
+    : 'No scored picks yet')
+  if (ticket?.totals && ticket.totals.selections > ticket.selections.length) {
+    lines.push(`Tickets ${ticket.totals.won}–${ticket.totals.lost} · ${ticket.totals.selections} selections`)
+  }
+  return lines
+}
+
 /**
- * The message posted to the group: one pick, the latest scores, the running
- * record and the ticket state. Nothing is invented — an empty day says so.
+ * The message posted to the group: the day's pick, the bookable ticket, the
+ * latest scores and the running record. Empty sections are dropped rather than
+ * filled with "nothing today", and nothing is invented.
  */
 export function buildUpdate({ day, pick, results = [], record, ticket, siteUrl }) {
-  const lines = [`<b>Pitchside — ${escapeHtml(day)}</b>`, '', ...pickLines(pick), ...ticketLines(ticket), '', ...resultLines(results), '', '<b>RECORD</b>']
-  if (record && record.scored > 0) {
-    lines.push(`${record.correct} of ${record.scored} correct (${(100 * record.correct / record.scored).toFixed(1)}%)`)
-  } else {
-    lines.push('No scored forecasts yet.')
-  }
-  if (siteUrl) lines.push('', `<a href="${escapeHtml(siteUrl)}">Full record and method</a>`)
+  const lines = [
+    `<b>Pitchside</b> · ${escapeHtml(day)}`,
+    '',
+    ...pickLines(pick),
+    ...ticketLines(ticket),
+    ...resultLines(withoutTicketMatches(results, ticket?.selections ?? [])),
+    '',
+    ...recordLines(record, ticket),
+  ]
+  if (siteUrl) lines.push('', `<a href="${escapeHtml(siteUrl)}">Full record and method →</a>`)
   const text = lines.join('\n')
   return text.length > MAX_MESSAGE_LENGTH ? `${text.slice(0, MAX_MESSAGE_LENGTH - 4)}\n…` : text
 }
