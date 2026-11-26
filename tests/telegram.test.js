@@ -16,7 +16,25 @@ const results = [
 ]
 
 const record = { correct: 69, scored: 117 }
-const ticket = { id: '2026-11-27', won: 0, lost: 0, push: 0, selections: 5 }
+const pendingTicket = {
+  id: '2026-11-27',
+  label: 'Weekend of 27–29 November 2026',
+  won: 0, lost: 0, push: 0,
+  selections: [
+    { day: 'Fri 27 Nov', fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'pending', score: null },
+    { day: 'Sat 28 Nov', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'pending', score: null },
+  ],
+}
+
+const settledTicket = {
+  id: '2026-11-27',
+  label: 'Weekend of 27–29 November 2026',
+  won: 1, lost: 1, push: 0,
+  selections: [
+    { day: 'Fri 27 Nov', fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'won', score: 'Werder Bremen 2 : 0 M\'gladbach' },
+    { day: 'Sat 28 Nov', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'lost', score: 'Mainz 0 : 1 Union Berlin' },
+  ],
+}
 
 describe('telegram formatting', () => {
   it('escapes markup so a club name cannot break the message', () => {
@@ -33,15 +51,14 @@ describe('telegram formatting', () => {
     expect(requiredPrice(1.2)).toBeNull()
   })
 
-  it('posts the single, the latest scores, the record and the ticket', () => {
-    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results, record, ticket, siteUrl: 'https://example.test/record' })
+  it('posts the single, the latest scores and the record', () => {
+    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results, record, siteUrl: 'https://example.test/record' })
     expect(text).toContain('Pitchside — Fri 27 Nov 2026')
     expect(text).toContain('Mainz to win — 60%')
     expect(text).toContain('Only worth playing at 1.67 or better.')
     expect(text).toContain('✔ Werder Bremen 2–0 M&#39;gladbach'.replace('&#39;', "'"))
     expect(text).toContain('✘ Levante 1–1 Elche')
     expect(text).toContain('69 of 117 correct (59.0%)')
-    expect(text).toContain('Ticket 2026-11-27: 0 won, 0 lost — still to settle')
     expect(text).toContain('href="https://example.test/record"')
   })
 
@@ -52,9 +69,32 @@ describe('telegram formatting', () => {
     expect(text).not.toContain('Only worth playing at')
   })
 
+  it('lists a pending ticket with the price each selection needs', () => {
+    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: [], record, ticket: pendingTicket })
+    expect(text).toContain('TICKET 2026-11-27</b> — Weekend of 27–29 November 2026')
+    expect(text).toContain('2 independent singles · never multiplied')
+    expect(text).toContain("• Fri 27 Nov · Werder Bremen v M'gladbach — Werder Bremen win · 68% · needs 1.48")
+    expect(text).toContain('2 still to settle')
+    expect(text).toContain('Book each one at the price shown or better')
+  })
+
+  it('replaces the price with the score once a selection has settled', () => {
+    const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: settledTicket })
+    expect(text).toContain("✔ Fri 27 Nov · Werder Bremen 2 : 0 M'gladbach — Werder Bremen win")
+    expect(text).toContain("✘ Sat 28 Nov · Mainz 0 : 1 Union Berlin — Mainz win")
+    expect(text).toContain('1 won · 1 lost')
+    expect(text).not.toContain('Book each one at the price shown')
+  })
+
+  it('adds the all-time ticket tally once there is more than one ticket', () => {
+    const withTotals = { ...settledTicket, totals: { won: 4, lost: 3, selections: 9 } }
+    const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: withTotals })
+    expect(text).toContain('All tickets: 4 won · 3 lost from 9 selections')
+  })
+
   it('never exceeds the Telegram limit', () => {
     const many = Array.from({ length: 300 }, (_, index) => ({ ...results[0], home: `Team ${index}` }))
-    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: many, record, siteUrl: 'https://example.test' })
+    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: many, record, ticket: pendingTicket, siteUrl: 'https://example.test' })
     expect(text.length).toBeLessThanOrEqual(4096)
     expect(text.endsWith('…')).toBe(true)
   })
