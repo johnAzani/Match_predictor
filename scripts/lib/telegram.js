@@ -30,6 +30,38 @@ function pickLines(pick) {
   ]
 }
 
+// Pending and not-yet-in-the-ledger look the same to a reader: not settled.
+const TICKET_MARKS = { won: '✔', lost: '✘', push: '➖', pending: '•', unrecorded: '•' }
+
+// The ticket is published so it can be booked, then scored so it can be
+// checked. Both views are the same list: a pending row shows the price it
+// needs, a settled row shows the score it got.
+function ticketLines(ticket) {
+  if (!ticket || !ticket.selections?.length) return []
+  const pending = ticket.selections.filter((selection) => selection.state === 'pending' || selection.state === 'unrecorded')
+  const lines = [
+    `<b>TICKET ${escapeHtml(ticket.id)}</b>${ticket.label ? ` — ${escapeHtml(ticket.label)}` : ''}`,
+    `${ticket.selections.length} independent single${ticket.selections.length === 1 ? '' : 's'} · never multiplied`,
+  ]
+  for (const selection of ticket.selections) {
+    const mark = TICKET_MARKS[selection.state] ?? '•'
+    if (selection.state === 'won' || selection.state === 'lost' || selection.state === 'push') {
+      lines.push(`${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.score ?? '')} — ${escapeHtml(selection.pick)}`)
+    } else {
+      lines.push(`${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.fixture)} — ${escapeHtml(selection.pick)} · ${escapeHtml(selection.probability)} · needs ${escapeHtml(selection.need)}`)
+    }
+  }
+  const settled = ticket.won + ticket.lost + ticket.push
+  lines.push(settled
+    ? `${ticket.won} won · ${ticket.lost} lost${ticket.push ? ` · ${ticket.push} push` : ''}${ticket.selections.length > settled ? ` · ${ticket.selections.length - settled} to settle` : ''}`
+    : `${ticket.selections.length} still to settle`)
+  if (pending.length) lines.push('Book each one at the price shown or better — below it, a winning pick still loses money.')
+  if (ticket.totals && ticket.totals.selections > ticket.selections.length) {
+    lines.push(`All tickets: ${ticket.totals.won} won · ${ticket.totals.lost} lost from ${ticket.totals.selections} selections`)
+  }
+  return ['', ...lines]
+}
+
 function resultLines(results) {
   if (!results.length) return ['<b>RESULTS</b>', 'No settled matches in the last day.']
   return [
@@ -47,15 +79,11 @@ function resultLines(results) {
  * record and the ticket state. Nothing is invented — an empty day says so.
  */
 export function buildUpdate({ day, pick, results = [], record, ticket, siteUrl }) {
-  const lines = [`<b>Pitchside — ${escapeHtml(day)}</b>`, '', ...pickLines(pick), '', ...resultLines(results), '', '<b>RECORD</b>']
+  const lines = [`<b>Pitchside — ${escapeHtml(day)}</b>`, '', ...pickLines(pick), ...ticketLines(ticket), '', ...resultLines(results), '', '<b>RECORD</b>']
   if (record && record.scored > 0) {
     lines.push(`${record.correct} of ${record.scored} correct (${(100 * record.correct / record.scored).toFixed(1)}%)`)
   } else {
     lines.push('No scored forecasts yet.')
-  }
-  if (ticket && ticket.selections > 0) {
-    const settled = ticket.won + ticket.lost + ticket.push
-    lines.push(`Ticket ${escapeHtml(ticket.id)}: ${ticket.won} won, ${ticket.lost} lost${settled ? '' : ' — still to settle'}`)
   }
   if (siteUrl) lines.push('', `<a href="${escapeHtml(siteUrl)}">Full record and method</a>`)
   const text = lines.join('\n')

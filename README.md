@@ -117,7 +117,7 @@ If the build, deployment, confirmed backup, source-health check or overdue monit
 
 The daily refresh can post one message to a Telegram group so the day's pick and the latest scores arrive without opening the site. It runs as the `telegram` job in `pages.yml`, **only after the deploy and the ledger backup have both succeeded**, and only on the scheduled run or a manual dispatch — a routine push to `main` does not post.
 
-The message contains the day's single (or an explicit "no pick today"), the price it needs to break even, up to six results from the last day with ✔/✘, the running record and the current ticket state. It is built from the same snapshot that was deployed and from the same `chooseDailyPick` function the site uses, so the group and the page cannot disagree.
+The message contains the day's single (or an explicit "no pick today") with the price it needs to break even, the **ticket** — each selection with its date, the price to book it at, and the score once it settles — up to six results from the last day with ✔/✘, the running record and the all-time ticket tally. It is built from the same snapshot that was deployed and from the same `chooseDailyPick` function the site uses, so the group and the page cannot disagree.
 
 **Setup**
 
