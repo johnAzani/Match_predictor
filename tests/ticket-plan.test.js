@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LEAD_TIME, TICKET_THRESHOLD, eligiblePicks, planTicket } from '../src/lib/ticketPlan.js'
+import { LEAD_TIME, TICKET_THRESHOLD, eligiblePicks, isoWeek, planTicket } from '../src/lib/ticketPlan.js'
 
 // A fixture shaped like the published snapshot's, so the real model runs.
 function fixture({ home = 'Home', away = 'Away', date = '2026-11-29', time = '15:00', league = 'Serie A', strengths = [1.5, 1.5] } = {}) {
@@ -26,7 +26,7 @@ describe('picking the eligible fixtures', () => {
     const soon = fixture({ date: '2026-11-26', time: '10:30' })
     const later = fixture({ date: '2026-11-29', time: '15:00' })
     expect(eligiblePicks([started, soon], { now: NOW })).toEqual([])
-    expect(eligiblePicks([soon], { now: NOW, leadTime: 0 }).length).toBe(0)
+    expect(eligiblePicks([soon], { now: NOW, leadTime: 0, threshold: 0 })).toHaveLength(1)
     expect(eligiblePicks([later], { now: NOW, threshold: 0 })).toHaveLength(1)
   })
 
@@ -49,45 +49,62 @@ describe('picking the eligible fixtures', () => {
   })
 })
 
-describe('planning the next ticket', () => {
-  const day = [
+describe('the week a date belongs to', () => {
+  it('runs Monday to Sunday and names the year of its Thursday', () => {
+    expect(isoWeek('2026-11-23')).toEqual({ key: '2026-W48', monday: '2026-11-23' })
+    expect(isoWeek('2026-11-29')).toEqual({ key: '2026-W48', monday: '2026-11-23' })
+    expect(isoWeek('2026-11-30')).toEqual({ key: '2026-W49', monday: '2026-11-30' })
+    // New Year's Day 2027 belongs to the week that started in December.
+    expect(isoWeek('2027-01-01')).toEqual({ key: '2026-W53', monday: '2026-12-28' })
+  })
+})
+
+describe('planning the week ticket', () => {
+  const sunday = [
     fixture({ home: 'Roma', away: 'Monza', strengths: [2.8, 1.1] }),
     fixture({ home: 'Brighton', away: 'Newcastle', strengths: [2.2, 0.9] }),
     fixture({ home: 'Sassuolo', away: 'Napoli', strengths: [0.6, 2.6] }),
   ]
 
-  it('writes a ticket for the earliest day that has no ticket yet', () => {
-    const monday = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.9, 2.4] })]
-    const plan = planTicket({ fixtures: [...monday, ...day], tickets: [], now: NOW })
-    expect(plan.id).toBe('2026-11-29')
-    expect(plan.label).toBe('Sunday 29 November 2026')
+  it('writes one slip for the whole week, not one per day', () => {
+    const midweek = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.9, 2.4] })]
+    const plan = planTicket({ fixtures: [...sunday, ...midweek], tickets: [], now: NOW })
+    expect(plan.id).toBe('2026-W48')
+    expect(plan.label).toBe('Week of 23 Nov – 29 Nov 2026')
     expect(plan.generated).toBe(true)
     expect(plan.selectedAt).toBe(new Date(NOW).toISOString())
+    expect(plan.selections).toHaveLength(3)
   })
 
-  it('leaves a matchday alone once any ticket already touches it', () => {
-    const existing = { id: '2026-11-27', selections: [{ date: '2026-11-29', home: 'Roma', away: 'Monza' }] }
-    const plan = planTicket({ fixtures: day, tickets: [existing], now: NOW })
-    expect(plan).toBeNull()
+  it('leaves a week alone once it has a ticket', () => {
+    const existing = { id: '2026-W48', selections: [{ date: '2026-11-23', home: 'Old', away: 'Game' }] }
+    expect(planTicket({ fixtures: sunday, tickets: [existing], now: NOW })).toBeNull()
   })
 
-  it('never reuses a fixture and never exceeds five selections', () => {
-    const many = Array.from({ length: 7 }, (_, index) => fixture({
-      home: `Home ${index}`, away: `Away ${index}`, time: `${12 + index}:00`, strengths: [2.6 - index * 0.1, 1],
+  it('adds a second slip in the same week without repeating a fixture', () => {
+    const taken = { id: '2026-11-27', selections: [{ date: '2026-11-29', home: 'Roma', away: 'Monza' }] }
+    const plan = planTicket({ fixtures: sunday, tickets: [taken], now: NOW })
+    expect(plan.id).toBe('2026-W48')
+    expect(plan.selections.map((selection) => selection.home)).toEqual(['Brighton', 'Sassuolo'])
+  })
+
+  it('never reuses a fixture and never exceeds six selections', () => {
+    const many = Array.from({ length: 8 }, (_, index) => fixture({
+      home: `Home ${index}`, away: `Away ${index}`, time: `${12 + index}:00`, strengths: [2.6 - index * 0.05, 1],
     }))
     const plan = planTicket({ fixtures: many, tickets: [], now: NOW })
-    expect(plan.selections).toHaveLength(5)
-    expect(new Set(plan.selections.map((selection) => `${selection.home}|${selection.away}`)).size).toBe(5)
+    expect(plan.selections).toHaveLength(6)
+    expect(new Set(plan.selections.map((selection) => `${selection.home}|${selection.away}`)).size).toBe(6)
     expect(plan.selections.map((selection) => selection.probability)).toEqual(
       [...plan.selections.map((selection) => selection.probability)].sort((a, b) => b - a),
     )
   })
 
   it('writes selections in the same shape the ledger already uses', () => {
-    const plan = planTicket({ fixtures: day, tickets: [], now: NOW })
+    const plan = planTicket({ fixtures: sunday, tickets: [], now: NOW })
     const [first] = plan.selections
     expect(first).toMatchObject({
-      id: '2026-11-29-1', date: '2026-11-29', league: 'Serie A', market: '1X2',
+      id: '2026-W48-2026-11-29-1', date: '2026-11-29', league: 'Serie A', market: '1X2',
       home: 'Roma', away: 'Monza', side: 'home', label: 'Roma win',
     })
     expect(first.probability).toBeGreaterThan(0.57)
@@ -95,7 +112,7 @@ describe('planning the next ticket', () => {
     expect(first.fairOdds).toBeCloseTo(1 / first.probability, 2)
   })
 
-  it('labels an away pick and a draw without guessing a side', () => {
+  it('labels an away pick and leaves a one-leg slip without multiples', () => {
     const away = fixture({ home: 'Sassuolo', away: 'Napoli', strengths: [0.6, 2.6] })
     expect(eligiblePicks([away], { now: NOW })[0].side).toBe('away')
     const plan = planTicket({ fixtures: [away], tickets: [], now: NOW })
@@ -104,12 +121,12 @@ describe('planning the next ticket', () => {
   })
 
   it('adds multiples only when there is more than one leg', () => {
-    const two = planTicket({ fixtures: day.slice(0, 2), tickets: [], now: NOW })
+    const two = planTicket({ fixtures: sunday.slice(0, 2), tickets: [], now: NOW })
     expect(two.multiples.map((multiple) => multiple.short)).toEqual(['Double'])
-    const three = planTicket({ fixtures: day, tickets: [], now: NOW })
+    const three = planTicket({ fixtures: sunday, tickets: [], now: NOW })
     expect(three.multiples.map((multiple) => multiple.short)).toEqual(['Double', 'Treble'])
     const four = planTicket({
-      fixtures: [...day, fixture({ home: 'Roma B', away: 'Monza B', strengths: [2.4, 1] })], tickets: [], now: NOW,
+      fixtures: [...sunday, fixture({ home: 'Roma B', away: 'Monza B', strengths: [2.4, 1] })], tickets: [], now: NOW,
     })
     expect(four.multiples.map((multiple) => multiple.short)).toEqual(['Double', 'Treble', 'All four'])
     // Every multiple names a different fixture for every leg.
@@ -126,8 +143,8 @@ describe('planning the next ticket', () => {
   })
 
   it('produces the same plan twice for the same snapshot', () => {
-    const first = planTicket({ fixtures: day, tickets: [], now: NOW })
-    const again = planTicket({ fixtures: day, tickets: [], now: NOW })
+    const first = planTicket({ fixtures: sunday, tickets: [], now: NOW })
+    const again = planTicket({ fixtures: sunday, tickets: [], now: NOW })
     expect(again).toEqual(first)
   })
 

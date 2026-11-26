@@ -10,17 +10,45 @@ export const TICKET_THRESHOLD = 0.57
 // A fixture that kicks off within this window is left alone: a ticket is only
 // honest if it is written before the match starts.
 export const LEAD_TIME = 45 * 60 * 1000
-export const MAX_SELECTIONS = 5
+// A week is the unit of the slip: one bookable ticket holding the best games
+// from Monday to Sunday, rather than a trickle of one-match days.
+export const MAX_SELECTIONS = 6
+export const WINDOW_DAYS = 7
 
 const SIDES = ['home', 'draw', 'away']
 const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven']
 
-const dayLabel = (date) => {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  }).formatToParts(new Date(`${date}T12:00:00Z`))
+const dayMonth = (date) => {
+  const parts = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+    .formatToParts(new Date(`${date}T12:00:00Z`))
   const value = (type) => parts.find((part) => part.type === type)?.value ?? ''
-  return `${value('weekday')} ${value('day')} ${value('month')} ${value('year')}`
+  return `${value('day')} ${value('month')}`
+}
+
+const year = (date) => new Date(`${date}T12:00:00Z`).getUTCFullYear()
+
+// ISO week: weeks run Monday to Sunday and belong to the year of their Thursday.
+export function isoWeek(date) {
+  const target = new Date(`${date}T00:00:00Z`)
+  const shift = (target.getUTCDay() + 6) % 7
+  target.setUTCDate(target.getUTCDate() - dayNumber(target) + 3)
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4))
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - dayNumber(firstThursday) + 3)
+  const week = 1 + Math.round((target - firstThursday) / (7 * 24 * 60 * 60 * 1000))
+  const monday = new Date(target)
+  monday.setUTCDate(monday.getUTCDate() - 3)
+  return {
+    key: `${target.getUTCFullYear()}-W${String(week).padStart(2, '0')}`,
+    monday: monday.toISOString().slice(0, 10),
+  }
+}
+
+const dayNumber = (date) => (date.getUTCDay() + 6) % 7
+
+const addDays = (date, days) => {
+  const next = new Date(`${date}T00:00:00Z`)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next.toISOString().slice(0, 10)
 }
 
 const teamName = (team) => team?.shortName ?? team?.name ?? ''
@@ -70,19 +98,19 @@ function selectionFrom(pick, index, date) {
 }
 
 // The multiples always name different fixtures, because each leg is a different
-// selection from the day's list.
-function multiplesFor(selections) {
+// match from the week's list.
+function multiplesFor(selections, weekKey) {
   const ids = selections.map((selection) => selection.id)
   const count = ids.length
-  const multiples = [{ id: `${selections[0].date}-double`, short: 'Double', label: 'Two-leg double — the two strongest of the day', legs: ids.slice(0, 2) }]
+  const multiples = [{ id: `${weekKey}-double`, short: 'Double', label: 'Two-leg double — the two strongest of the week', legs: ids.slice(0, 2) }]
   if (count >= 3) {
-    multiples.push({ id: `${selections[0].date}-treble`, short: 'Treble', label: 'Three-leg treble — the three strongest of the day', legs: ids.slice(0, 3) })
+    multiples.push({ id: `${weekKey}-treble`, short: 'Treble', label: 'Three-leg treble — the three strongest of the week', legs: ids.slice(0, 3) })
   }
   if (count >= 4) {
     multiples.push({
-      id: `${selections[0].date}-all`,
+      id: `${weekKey}-all`,
       short: `All ${COUNT_WORDS[count] ?? count}`,
-      label: `${count}-leg multiple — every pick on this day`,
+      label: `${count}-leg multiple — every pick of the week`,
       legs: ids,
     })
   }
@@ -90,8 +118,13 @@ function multiplesFor(selections) {
 }
 
 /**
- * The next day that has no ticket yet, with its selections and multiples, or
- * `null` when every upcoming matchday is already covered or nothing qualifies.
+ * The next week that has no ticket yet, with its selections and multiples, or
+ * `null` when every upcoming week is already covered or nothing qualifies.
+ *
+ * The slip is deliberately a week and not a day: the good games are spread from
+ * Monday to Sunday, and one bookable ticket should hold them together. Fixtures
+ * already on another ticket are never repeated, so a slip can be added later in
+ * the same week without double-counting anything.
  */
 export function planTicket({
   fixtures = [],
@@ -101,32 +134,35 @@ export function planTicket({
   leadTime = LEAD_TIME,
   maxSelections = MAX_SELECTIONS,
 } = {}) {
-  // A matchday that any ticket already touches is left alone: one slip per day,
-  // so a fixture is never counted twice and two slips never compete.
-  const coveredDates = new Set(tickets.map((ticket) => ticket.id))
+  const coveredWeeks = new Set(tickets.map((ticket) => ticket.id))
+  const takenFixtures = new Set()
   for (const ticket of tickets) {
     for (const selection of ticket.selections ?? []) {
-      if (selection.date) coveredDates.add(selection.date)
+      takenFixtures.add(fixtureKey(selection.home, selection.away, selection.date))
     }
   }
 
-  const picks = eligiblePicks(fixtures, { now, threshold, leadTime })
-    .filter((pick) => !coveredDates.has(pick.fixture.date))
+  const picks = eligiblePicks(fixtures, { now, threshold, leadTime }).filter((pick) => {
+    const { fixture } = pick
+    return !takenFixtures.has(fixtureKey(teamName(fixture.home), teamName(fixture.away), fixture.date))
+  })
 
-  const byDate = new Map()
+  const byWeek = new Map()
   for (const pick of picks) {
-    if (!byDate.has(pick.fixture.date)) byDate.set(pick.fixture.date, [])
-    byDate.get(pick.fixture.date).push(pick)
+    const week = isoWeek(pick.fixture.date)
+    if (!byWeek.has(week.key)) byWeek.set(week.key, { week, picks: [] })
+    byWeek.get(week.key).picks.push(pick)
   }
 
-  const date = [...byDate.keys()].sort()[0]
-  if (!date) return null
+  const weekKey = [...byWeek.keys()].sort().find((key) => !coveredWeeks.has(key))
+  if (!weekKey) return null
+  const { week, picks: weekPicks } = byWeek.get(weekKey)
 
   // One fixture can only appear once, however the feed is ordered.
   const seen = new Set()
-  const chosen = byDate.get(date)
+  const chosen = weekPicks
     .filter((pick) => {
-      const key = fixtureKey(teamName(pick.fixture.home), teamName(pick.fixture.away), date)
+      const key = fixtureKey(teamName(pick.fixture.home), teamName(pick.fixture.away), pick.fixture.date)
       if (seen.has(key)) return false
       seen.add(key)
       return true
@@ -134,15 +170,20 @@ export function planTicket({
     .slice(0, maxSelections)
   if (!chosen.length) return null
 
-  const selections = chosen.map((pick, index) => selectionFrom(pick, index, date))
+  const selections = chosen.map((pick, index) => ({
+    ...selectionFrom(pick, index, pick.fixture.date),
+    // The week is part of the id so two tickets can never claim the same one.
+    id: `${weekKey}-${pick.fixture.date}-${index + 1}`,
+  }))
+  const sunday = addDays(week.monday, 6)
   const ticket = {
-    id: date,
-    label: dayLabel(date),
+    id: weekKey,
+    label: `Week of ${dayMonth(week.monday)} – ${dayMonth(sunday)} ${year(sunday)}`,
     selectedAt: new Date(now).toISOString(),
     generated: true,
-    note: 'Selected automatically from the model\'s eligible picks for this day and written before the first kick-off. Each selection is scored on its own; the multiples combine them into one slip, where every leg must win.',
+    note: 'Selected automatically from the model\'s eligible picks for this week and written before the first kick-off. Each selection is scored on its own; the multiples combine them into one slip, where every leg must win.',
     selections,
   }
-  if (selections.length >= 2) ticket.multiples = multiplesFor(selections)
+  if (selections.length >= 2) ticket.multiples = multiplesFor(selections, weekKey)
   return ticket
 }
