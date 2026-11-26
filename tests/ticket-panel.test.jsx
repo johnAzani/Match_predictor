@@ -88,6 +88,17 @@ describe('ticket panel', () => {
     expect(within(row).getByText(/related bets/)).toBeInTheDocument()
   })
 
+  it('keeps the panel to the recent tickets while the score covers them all', () => {
+    const many = Array.from({ length: 8 }, (_, index) => ({
+      ...tickets[0],
+      id: `2026-11-${String(20 + index).padStart(2, '0')}`,
+      label: `Day ${index}`,
+    }))
+    render(<Ticket tracker={tracker([])} tickets={many} />)
+    expect(screen.getAllByText(/TICKET 2026-11-/)).toHaveLength(6)
+    expect(screen.getByText(/Showing the 6 most recent of 8 tickets/)).toBeInTheDocument()
+  })
+
   it('renders every committed ticket, newest first', () => {
     render(<Ticket tracker={tracker([])} />)
     expect(screen.getByText(/TICKET 2026-11-27/)).toBeInTheDocument()

@@ -24,6 +24,8 @@ jobs:
       pages: read
     outputs:
       source_health: ${{ steps.source_health.outputs.source_health }}
+      ticket_created: ${{ steps.ticket.outputs.created }}
+      ticket_id: ${{ steps.ticket.outputs.ticket_id }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -56,6 +58,19 @@ jobs:
       - name: Check community snapshot health
         id: source_health
         run: node scripts/assess-snapshot.js
+      # The next matchday's ticket is planned from the snapshot that is about to
+      # be published, so the page and the group always show the same slip.
+      - name: Plan the next matchday ticket
+        id: ticket
+        run: node scripts/build-ticket.js
+      - name: Save the planned ticket for the commit job
+        if: ${{ steps.ticket.outputs.created == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ticket-plan
+          path: picks/tickets.json
+          retention-days: 7
+          if-no-files-found: error
       # This pre-deployment artifact is only a candidate, not proof it was public.
       - name: Back up the forecast ledger
         uses: actions/upload-artifact@v7
@@ -90,6 +105,41 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+  publish-ticket:
+    # The ticket has to be in the repository before its first kick-off: that
+    # commit is the timestamp that makes it impossible to edit a slip afterwards.
+    # Write access is isolated to this job and never touches the model ledger.
+    needs: build
+    if: ${{ needs.build.outputs.ticket_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+      - uses: actions/download-artifact@v8
+        with:
+          name: ticket-plan
+          path: picks
+      - name: Commit the ticket before its first kick-off
+        env:
+          TICKET_ID: ${{ needs.build.outputs.ticket_id }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- picks/tickets.json; then
+            echo "Ticket ${TICKET_ID} is already in the repository."
+            echo "### No ticket commit needed" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add picks/tickets.json
+          git commit -m "ticket: ${TICKET_ID}, selected before kick-off"
+          git pull --rebase origin main
+          git push
+          echo "### Ticket ${TICKET_ID} committed" >> "$GITHUB_STEP_SUMMARY"
+
   deploy:
     environment:
       name: github-pages
