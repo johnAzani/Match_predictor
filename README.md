@@ -123,7 +123,7 @@ The message contains the day's single (or an explicit "no pick today"), the pric
 
 1. In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and keep the token it returns.
 2. Add the bot to your group. For a group that restricts posting, make it an admin with permission to send messages.
-3. Send any message in the group, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `chat.id` from the result — group ids are negative and usually start with `-100`.
+3. In the group, send `/start@YourBotName` (bots only receive commands and mentions in groups), then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and read `chat.id` from the result — a group id keeps its minus sign and a supergroup id starts with `-100`. If `getUpdates` returns nothing, the bot has not received a message in that group yet.
 4. In GitHub, add repository secrets `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (Settings → Secrets and variables → Actions).
 5. Run the workflow once with **Run workflow** to post a test message. It will then post with each scheduled refresh.
 

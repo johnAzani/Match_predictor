@@ -62,6 +62,22 @@ export function buildUpdate({ day, pick, results = [], record, ticket, siteUrl }
   return text.length > MAX_MESSAGE_LENGTH ? `${text.slice(0, MAX_MESSAGE_LENGTH - 4)}\n…` : text
 }
 
+// Telegram's descriptions are accurate but terse. Turn the ones people hit
+// into an instruction, so a failed run says what to change.
+export function explainDeliveryError(description) {
+  const text = String(description ?? '')
+  if (/chat not found/i.test(text)) {
+    return 'The bot cannot see that chat. A group id keeps its minus sign and a supergroup id starts with -100, the bot must be a member of the group, and it must have received a message there at least once.'
+  }
+  if (/bot was blocked/i.test(text)) return 'The bot was blocked: unblock it in the group or re-add it.'
+  if (/bot is not a member/i.test(text)) return 'The bot is not in the group: add it, then send it a message there.'
+  if (/not enough rights/i.test(text)) return 'The group restricts posting: make the bot an admin with permission to send messages.'
+  if (/Unauthorized/i.test(text)) return 'TELEGRAM_BOT_TOKEN was rejected: copy it again from BotFather, with no spaces.'
+  if (/chat_id is empty/i.test(text)) return 'TELEGRAM_CHAT_ID is empty: add the group id as a repository secret.'
+  if (/can't parse entities|unsupported start tag/i.test(text)) return 'Telegram rejected the message formatting.'
+  return text
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 // Telegram answers 429 with retry_after when a group is busy; one retry is
@@ -82,5 +98,6 @@ export async function postTelegram({ token, chatId, text, fetchImpl = fetch, api
     attempt = await send()
   }
   if (attempt.payload?.ok) return { ok: true, messageId: attempt.payload.result?.message_id ?? null }
-  return { ok: false, status: attempt.status, reason: attempt.payload?.description ?? 'Telegram rejected the message.' }
+  const description = attempt.payload?.description ?? 'Telegram rejected the message.'
+  return { ok: false, status: attempt.status, description, reason: explainDeliveryError(description) }
 }

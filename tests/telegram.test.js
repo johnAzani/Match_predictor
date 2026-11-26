@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildUpdate, escapeHtml, postTelegram, requiredPrice } from '../scripts/lib/telegram.js'
+import { buildUpdate, escapeHtml, explainDeliveryError, postTelegram, requiredPrice } from '../scripts/lib/telegram.js'
 
 const pick = {
   pick: 'home',
@@ -60,6 +60,17 @@ describe('telegram formatting', () => {
   })
 })
 
+describe('delivery errors', () => {
+  it('turns the common rejections into an instruction', () => {
+    expect(explainDeliveryError('Bad Request: chat not found')).toMatch(/minus sign and a supergroup id starts with -100/)
+    expect(explainDeliveryError('Forbidden: bot is not a member of the chat')).toMatch(/not in the group/)
+    expect(explainDeliveryError('Forbidden: not enough rights to send text messages to the chat')).toMatch(/admin with permission/)
+    expect(explainDeliveryError('Unauthorized')).toMatch(/TELEGRAM_BOT_TOKEN was rejected/)
+    expect(explainDeliveryError('Bad Request: chat_id is empty')).toMatch(/TELEGRAM_CHAT_ID is empty/)
+    expect(explainDeliveryError('Bad Request: unexpected server error')).toBe('Bad Request: unexpected server error')
+  })
+})
+
 describe('telegram delivery', () => {
   const ok = { ok: true, result: { message_id: 42 } }
 
@@ -94,6 +105,8 @@ describe('telegram delivery', () => {
     const fetchImpl = vi.fn().mockResolvedValue({ status: 403, json: async () => ({ ok: false, description: 'Forbidden: bot is not a member of the chat' }) })
     const result = await postTelegram({ token: 'secret-token', chatId: 'c', text: 'x', fetchImpl })
     expect(result).toMatchObject({ ok: false, status: 403 })
+    expect(result.description).toBe('Forbidden: bot is not a member of the chat')
+    expect(result.reason).toMatch(/not in the group/)
     expect(JSON.stringify(result)).not.toContain('secret-token')
   })
 })
