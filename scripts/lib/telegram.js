@@ -41,10 +41,12 @@ function ticketLines(ticket) {
   if (!ticket || !ticket.selections?.length) return []
   const count = ticket.selections.length
   const settled = ticket.won + ticket.lost + ticket.push
+  const open = count - settled
   const lines = [
     '',
     heading('🎫', `Ticket ${escapeHtml(ticket.id)}`),
-    `<i>${count} single${count === 1 ? '' : 's'} · booked separately</i>`,
+    `<i>${escapeHtml(ticket.label ?? '')}</i>`,
+    `<i>${count} leg${count === 1 ? '' : 's'} · every one must win</i>`,
   ]
   for (const selection of ticket.selections) {
     const mark = SETTLED_MARKS[selection.state] ?? PENDING_MARK
@@ -52,16 +54,26 @@ function ticketLines(ticket) {
       ? `${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.fixture)} → ${escapeHtml(selection.pick)}, ${escapeHtml(selection.probability)}, min ${escapeHtml(selection.need)}`
       : `${mark} ${escapeHtml(selection.day)} · ${escapeHtml(selection.score ?? '')} → ${escapeHtml(selection.pick)}`)
   }
-  const summary = settled
-    ? `${ticket.won} won · ${ticket.lost} lost${ticket.push ? ` · ${ticket.push} push` : ''}${count > settled ? ` · ${count - settled} to settle` : ''}`
-    : `${count} to settle`
-  // With multiples on the same message, the two tallies need naming.
-  const singles = ticket.multiples?.length ? `Singles ${summary}` : summary
+  lines.push('', verdictLine(ticket, { count, settled, open }))
   const multiples = multipleLines(ticket.multiples)
   if (multiples.length) lines.push('', ...multiples)
-  lines.push('', `<i>${singles}</i>`)
-  if (settled === 0) lines.push('<i>Book each at its min price or better</i>')
+  if (settled === 0) lines.push('', `<i>Book each at its min price or better</i>`)
   return lines
+}
+
+// The result of the slip itself, in one line: in play, won, or lost with the
+// leg that broke it named. This is the answer to "did I win it or not".
+function verdictLine(ticket, { count, settled, open }) {
+  if (open > 0) {
+    return `<b>${settled === 0 ? 'NOT STARTED' : 'IN PLAY'}</b> · ${settled} of ${count} settled · ${open} to play`
+  }
+  if (ticket.lost === 0) {
+    const voided = ticket.push ? ` · ${ticket.push} void` : ''
+    return `<b>WON</b> · ${count - ticket.push} of ${count}${voided}`
+  }
+  const missed = ticket.selections.filter((selection) => selection.state === 'lost').map((selection) => selection.pick)
+  const named = missed.slice(0, 2).map(escapeHtml).join(' and ')
+  return `<b>LOST</b> · ${ticket.won} of ${count} · ${named}${missed.length > 2 ? `, +${missed.length - 2} more` : ''} missed`
 }
 
 // A multiple is one slip whose legs come from different matches, so it is shown
@@ -113,19 +125,17 @@ function recordLines(record, totals, shownSelections) {
   lines.push(record && record.scored > 0
     ? `<b>${(100 * record.correct / record.scored).toFixed(1)}%</b> · ${record.correct} of ${record.scored} correct`
     : 'No scored picks yet')
-  if (totals && totals.selections > shownSelections) {
+  // The all-ticket tally only earns its line once something has actually been
+  // decided; before that it is a number that has not been earned yet.
+  if (totals && totals.selections > shownSelections && (totals.won ?? 0) + (totals.lost ?? 0) > 0) {
     lines.push(`Tickets ${totals.won}–${totals.lost} · ${totals.selections} selections`)
   }
   return lines
 }
 
-// The group follows the slips it is actually holding: every ticket that still has
-// a leg to play, newest first, capped so the message stays readable. When the
-// whole slate is settled, the newest ticket is shown so the section is not empty.
-export const LIVE_SLIP_LIMIT = 3
-
-// The next game on a slip still to be settled. A week slip's first leg can be
-// days away, so its id would sort it wrongly against tonight's slip.
+// The group follows one slip at a time: the one being played, from its first
+// leg to its last, and only then the next. Two slips in a message is what made
+// it unreadable.
 function nextFixtureDate(ticket) {
   const dates = (ticket.selections ?? [])
     .filter((selection) => !selection.state || selection.state === 'pending' || selection.state === 'unrecorded')
@@ -135,25 +145,48 @@ function nextFixtureDate(ticket) {
   return dates[0] ?? '9999-12-31'
 }
 
+function lastFixtureDate(ticket) {
+  const dates = (ticket.selections ?? []).map((selection) => selection.date).filter(Boolean).sort()
+  return dates[dates.length - 1] ?? ''
+}
+
 const byNextGame = (a, b) => nextFixtureDate(a).localeCompare(nextFixtureDate(b)) || String(a.id).localeCompare(String(b.id))
 
-export function liveTickets(summarized, limit = LIVE_SLIP_LIMIT) {
-  const slips = Array.isArray(summarized) ? summarized : []
-  const live = slips.filter((ticket) => (ticket.pending ?? 0) + (ticket.unrecorded ?? 0) > 0)
-  if (!live.length) return slips.slice(0, limit)
+const isLive = (ticket) => (ticket?.pending ?? 0) + (ticket?.unrecorded ?? 0) > 0
 
-  // Soonest kick-off first: the slip being played tonight is read first.
-  const ordered = live.slice().sort(byNextGame)
-  if (ordered.length <= limit) return ordered
+/**
+ * The slip to show: the live one whose next game comes first. When nothing is
+ * live, the one that finished most recently — so its verdict stays on screen
+ * until the next slip starts.
+ */
+export function currentTicket(summarized) {
+  const slips = Array.isArray(summarized) ? summarized.slice() : []
+  if (!slips.length) return null
+  const live = slips.filter(isLive).sort(byNextGame)
+  if (live.length) return live[0]
+  return slips.sort((a, b) => lastFixtureDate(a).localeCompare(lastFixtureDate(b)))[slips.length - 1]
+}
 
-  // A cap must never bury the newest slip: it is the one that can still be
-  // booked. It takes the last slot, and the rest are counted, not hidden.
-  const newest = live.reduce((best, ticket) => (
-    String(ticket.selectedAt ?? ticket.id) > String(best.selectedAt ?? best.id) ? ticket : best
-  ), live[0])
-  const shown = ordered.slice(0, limit)
-  if (!shown.includes(newest)) shown[shown.length - 1] = newest
-  return shown.sort(byNextGame)
+/**
+ * What to say about the other slips: the last one that finished (its verdict)
+ * and the one waiting to be played. Both are one line, never a second slip.
+ */
+export function otherTickets(summarized, current) {
+  const slips = Array.isArray(summarized) ? summarized.filter((ticket) => ticket !== current) : []
+  const finished = slips
+    .filter((ticket) => !isLive(ticket) && (ticket.won ?? 0) + (ticket.lost ?? 0) + (ticket.push ?? 0) > 0)
+    .sort((a, b) => lastFixtureDate(a).localeCompare(lastFixtureDate(b)))
+    .at(-1) ?? null
+  const upcoming = slips.filter(isLive).sort(byNextGame)[0] ?? null
+  return {
+    last: finished ? {
+      id: finished.id,
+      state: (finished.lost ?? 0) > 0 ? 'lost' : 'won',
+      won: finished.won ?? 0,
+      count: finished.selections?.length ?? 0,
+    } : null,
+    next: upcoming ? { label: upcoming.label ?? upcoming.id, games: upcoming.selections?.length ?? 0 } : null,
+  }
 }
 
 /**
@@ -162,17 +195,17 @@ export function liveTickets(summarized, limit = LIVE_SLIP_LIMIT) {
  * single-slip form; `tickets` carries several slips at once. Empty sections are
  * dropped rather than filled with "nothing today", and nothing is invented.
  */
-export function buildUpdate({ day, pick, results = [], record, ticket, tickets, totals, siteUrl }) {
+export function buildUpdate({ day, pick, results = [], record, ticket, tickets, last, next, totals, siteUrl }) {
   const slips = (Array.isArray(tickets) ? tickets : ticket ? [ticket] : []).filter(Boolean)
   const ledger = totals ?? ticket?.totals ?? null
   const selections = slips.flatMap((slip) => slip.selections ?? [])
-  const hidden = Math.max(0, (ledger?.live ?? 0) - slips.length)
   const lines = [
     `<b>Pitchside</b> · ${escapeHtml(day)}`,
     '',
     ...pickLines(pick),
     ...slips.flatMap((slip) => ticketLines(slip)),
-    ...(hidden > 0 ? [`<i>+${hidden} more slip${hidden === 1 ? '' : 's'} on the site</i>`] : []),
+    ...(last ? [`<i>Last slip: ${escapeHtml(last.id)} — ${last.state === 'won' ? 'won' : 'lost'}, ${last.won} of ${last.count}</i>`] : []),
+    ...(next ? [`<i>Next slip: ${escapeHtml(next.label)} · ${next.games} leg${next.games === 1 ? '' : 's'} · on the site</i>`] : []),
     ...resultLines(withoutTicketMatches(results, selections)),
     '',
     ...recordLines(record, ledger, selections.length),

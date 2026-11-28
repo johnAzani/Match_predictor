@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { assessDailyData, chooseDailyPick, nigeriaDay } from '../src/lib/dailyPicks.js'
 import { outcome, summarizeTracker } from '../src/lib/tracker.js'
 import { legName, summarizeTicket, summarizeTickets } from '../src/lib/ticket.js'
-import { buildUpdate, liveTickets, postTelegram } from './lib/telegram.js'
+import { buildUpdate, currentTicket, otherTickets, postTelegram } from './lib/telegram.js'
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'))
 const HOUR = 60 * 60 * 1000
@@ -46,7 +46,8 @@ function ticketUpdate(tickets, records) {
   const ordered = tickets.slice().sort((a, b) => b.id.localeCompare(a.id))
   const summarized = ordered.map((ticket) => summarizeTicket(ticket, records))
   const totals = summarizeTickets(ordered, records)
-  const shown = liveTickets(summarized)
+  const current = currentTicket(summarized)
+  const { last, next } = otherTickets(summarized, current)
   const format = (latest) => ({
     id: latest.id,
     label: latest.label,
@@ -55,6 +56,7 @@ function ticketUpdate(tickets, records) {
     push: latest.push,
     selections: latest.selections.map((selection) => ({
       day: shortDay(selection.date),
+      date: selection.date,
       home: selection.home,
       away: selection.away,
       fixture: `${selection.home} v ${selection.away}`,
@@ -79,8 +81,10 @@ function ticketUpdate(tickets, records) {
       })),
   })
   return {
-    totals: { won: totals.won, lost: totals.lost, selections: totals.selections, live: liveTickets(summarized, Infinity).length },
-    tickets: shown.map(format),
+    totals: { won: totals.won, lost: totals.lost, selections: totals.selections },
+    ticket: current ? format(current) : null,
+    last,
+    next,
   }
 }
 
@@ -129,12 +133,21 @@ async function main() {
   const summary = summarizeTracker(trackerData)
   const tickets = (await readJson(resolve('picks/tickets.json'))).tickets
   const slips = ticketUpdate(tickets, trackerData.records)
+  // The evening run only posts when the slip in play has a game today: on a quiet
+  // day it would repeat the morning's message word for word.
+  if (process.env.ONLY_IF_MATCH_TODAY === 'true' &&
+      !(slips?.ticket?.selections ?? []).some((selection) => selection.date === day)) {
+    console.log('No fixture on the slip today, so the evening update was skipped.')
+    return
+  }
   const text = buildUpdate({
     day: watLabel(day),
     pick: dailyPick(feedData, trackerData, now),
     results: recentResults(trackerData.records, day),
     record: { correct: summary.correct, scored: summary.evaluated },
-    tickets: slips?.tickets ?? [],
+    ticket: slips?.ticket ?? null,
+    last: slips?.last ?? null,
+    next: slips?.next ?? null,
     totals: slips?.totals ?? null,
     siteUrl,
   })

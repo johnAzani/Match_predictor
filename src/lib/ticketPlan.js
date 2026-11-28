@@ -140,6 +140,13 @@ export function planTicket({
   leadTime = LEAD_TIME,
   maxSelections = MAX_SELECTIONS,
 } = {}) {
+  // One slip at a time. While any existing ticket still has a fixture to play,
+  // no new slip is created: the group follows the current one to its last game,
+  // and the next is planned once that has settled.
+  const today = new Date(now).toISOString().slice(0, 10)
+  const stillToPlay = tickets.some((ticket) => (ticket.selections ?? []).some((selection) => selection.date >= today))
+  if (stillToPlay) return null
+
   // A week counts as covered when any ticket already has a fixture in it, so the
   // planner always looks at the week ahead instead of re-packing a week that is
   // already being played.
