@@ -95,7 +95,7 @@ describe('telegram formatting', () => {
       },
     })
     expect(text).toContain('<b>🧮 Multiples</b>')
-    expect(text).toContain('<i>One slip · every leg must win · different matches</i>')
+    expect(text).toContain('<i>Long shots · every leg must win · not a plan</i>')
     expect(text).toContain('▫️ Double · Werder Bremen + Mainz → 40.8%, min 2.46')
   })
 
@@ -123,7 +123,7 @@ describe('telegram formatting', () => {
   it('adds the all-time ticket tally once there is more than one ticket', () => {
     const withTotals = { ...settledTicket, totals: { won: 4, lost: 3, selections: 9 } }
     const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: withTotals })
-    expect(text).toContain('Tickets 4–3 · 9 selections')
+    expect(text).toContain('Legs 4–3 of 9 across all slips')
   })
 
   it('does not repeat a fixture that the ticket already scores', () => {
@@ -190,6 +190,24 @@ describe('telegram formatting', () => {
     // A dead multiple keeps no price.
     expect(text).toContain('<i>No multiple from this slip came in.</i>')
     expect(text).not.toContain('min 2.46')
+  })
+
+  it('tells the reader how often a multiple loses, not only its price', () => {
+    const slip = {
+      id: '2026-11-27', label: 'Weekend of 27–29 November 2026', won: 0, lost: 0, push: 0,
+      selections: [
+        { day: 'Fri 27 Nov', home: 'Werder Bremen', away: "M'gladbach", fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'pending', score: null },
+        { day: 'Sat 28 Nov', home: 'Mainz', away: 'Union Berlin', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'pending', score: null },
+      ],
+      multiples: [
+        { short: 'Double', legs: [{ short: 'Werder Bremen' }, { short: 'Mainz' }], probability: '40.8', need: '2.46', state: 'pending' },
+        { short: 'All two', legs: [{ short: 'Werder Bremen' }, { short: 'Mainz' }], probability: '8.1', need: '12.36', state: 'pending' },
+      ],
+    }
+    const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: [], record, ticket: slip })
+    expect(text).toContain('<i>Long shots · every leg must win · not a plan</i>')
+    expect(text).toContain('40.8%, min 2.46 · loses 7 in 12')
+    expect(text).toContain('8.1%, min 12.36 · loses 11 in 12')
   })
 
   it('never exceeds the Telegram limit', () => {
