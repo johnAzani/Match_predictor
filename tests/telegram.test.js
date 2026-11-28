@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildUpdate, escapeHtml, explainDeliveryError, liveTickets, postTelegram, requiredPrice, withoutTicketMatches } from '../scripts/lib/telegram.js'
+import { buildUpdate, currentTicket, escapeHtml, explainDeliveryError, otherTickets, postTelegram, requiredPrice, withoutTicketMatches } from '../scripts/lib/telegram.js'
 
 const pick = {
   pick: 'home',
@@ -72,9 +72,9 @@ describe('telegram formatting', () => {
   it('lists a pending ticket with the price each selection needs', () => {
     const text = buildUpdate({ day: 'Fri 27 Nov 2026', pick, results: [], record, ticket: pendingTicket })
     expect(text).toContain('<b>🎫 Ticket 2026-11-27</b>')
-    expect(text).toContain('<i>2 singles · booked separately</i>')
+    expect(text).toContain('<i>2 legs · every one must win</i>')
     expect(text).toContain("▫️ Fri 27 Nov · Werder Bremen v M'gladbach → Werder Bremen win, 68%, min 1.48")
-    expect(text).toContain('<i>2 to settle</i>')
+    expect(text).toContain('<b>NOT STARTED</b> · 0 of 2 settled · 2 to play')
     expect(text).toContain('<i>Book each at its min price or better</i>')
   })
 
@@ -82,7 +82,7 @@ describe('telegram formatting', () => {
     const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: settledTicket })
     expect(text).toContain("✅ Fri 27 Nov · Werder Bremen 2 : 0 M'gladbach → Werder Bremen win")
     expect(text).toContain("❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win")
-    expect(text).toContain('<i>1 won · 1 lost</i>')
+    expect(text).toContain('<b>LOST</b> · 1 of 2 · Mainz win missed')
     expect(text).not.toContain('Book each at its min price')
   })
 
@@ -140,76 +140,35 @@ describe('telegram formatting', () => {
     expect(text).toContain('❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win')
   })
 
-  it('posts two slips when both still have a leg to play', () => {
-    const sunday = {
-      id: '2026-11-29',
-      won: 0, lost: 0, push: 0,
-      selections: [
-        { day: 'Sun 29 Nov', home: 'Roma', away: 'Monza', fixture: 'Roma v Monza', pick: 'Roma win', probability: '69%', need: '1.46', state: 'pending', score: null },
-      ],
-    }
+  it('follows one slip at a time, from its first game to its last', () => {
+    const slip = (id, date, pending) => ({ id, pending, unrecorded: 0, selections: [{ date, state: pending ? 'pending' : 'won' }] })
+    const ledger = [slip('2026-11-27', '2026-11-27', 3), slip('2026-11-29', '2026-11-29', 4), slip('2026-W49', '2026-12-04', 6)]
+    // The slip with the next game is the one on screen; the others wait their turn.
+    expect(currentTicket(ledger).id).toBe('2026-11-27')
+    expect(currentTicket([ledger[1], ledger[2]]).id).toBe('2026-11-29')
+    // Everything settled: the one that finished last keeps its verdict on screen.
+    const done = [slip('2026-11-27', '2026-11-27', 0), slip('2026-11-29', '2026-11-29', 0)]
+    expect(currentTicket(done).id).toBe('2026-11-29')
+    expect(currentTicket([])).toBeNull()
+  })
+
+  it('names the slip that just finished and the one coming next', () => {
+    const finished = { id: '2026-11-27', pending: 0, unrecorded: 0, won: 3, lost: 2, push: 0, selections: [{ date: '2026-11-27', state: 'won' }, { date: '2026-11-28', state: 'lost' }] }
+    const playing = { id: '2026-11-29', pending: 4, unrecorded: 0, won: 0, lost: 0, selections: [{ date: '2026-11-29', state: 'pending' }] }
+    const waiting = { id: '2026-W49', pending: 1, unrecorded: 0, label: 'Week of 30 Nov – 6 Dec 2026', selections: [{ date: '2026-12-04', state: 'pending' }] }
+    const { last, next } = otherTickets([finished, playing, waiting], playing)
+    expect(last).toEqual({ id: '2026-11-27', state: 'lost', won: 3, count: 2 })
+    expect(next).toEqual({ label: 'Week of 30 Nov – 6 Dec 2026', games: 1 })
+  })
+
+  it('prints the slip result, the last slip and the next one', () => {
     const text = buildUpdate({
-      day: 'Fri 27 Nov 2026', pick, results: [], record,
-      tickets: [pendingTicket, sunday],
-      totals: { won: 0, lost: 0, selections: 3 },
+      day: 'Sun 29 Nov 2026', pick, results: [], record, ticket: pendingTicket,
+      last: { id: '2026-11-27', state: 'lost', won: 3, count: 5 },
+      next: { label: 'Week of 30 Nov – 6 Dec 2026', games: 6 },
     })
-    expect(text).toContain('<b>🎫 Ticket 2026-11-27</b>')
-    expect(text).toContain('<b>🎫 Ticket 2026-11-29</b>')
-    // Every leg is shown, and the ledger tally is left out because all of it is
-    // already on the message.
-    expect(text).toContain('▫️ Sun 29 Nov · Roma v Monza → Roma win, 69%, min 1.46')
-    expect(text).not.toContain('Tickets 0–0')
-  })
-
-  it('orders slips by their next game, not by their name', () => {
-    const slip = (id, date) => ({ id, pending: 1, unrecorded: 0, selectedAt: '2026-11-26T00:00:00Z', selections: [{ date, state: 'pending' }] })
-    // A week slip is named last but its first leg is days after tonight's game.
-    expect(liveTickets([slip('2026-W49', '2026-12-04'), slip('2026-11-27', '2026-11-27')]).map((ticket) => ticket.id))
-      .toEqual(['2026-11-27', '2026-W49'])
-
-    const weekSlip = {
-      id: '2026-W49', won: 0, lost: 0, push: 0,
-      selections: [{ day: 'Fri 4 Dec', home: 'Bayern', away: 'Paderborn', fixture: 'Bayern v Paderborn', pick: 'Bayern win', probability: '75%', need: '1.33', state: 'pending', score: null }],
-    }
-    const text = buildUpdate({ day: 'Thu 26 Nov 2026', pick, results: [], record, tickets: [pendingTicket, weekSlip] })
-    expect(text.indexOf('🎫 Ticket 2026-11-27')).toBeLessThan(text.indexOf('🎫 Ticket 2026-W49'))
-  })
-
-  it('keeps the newest slip when there are more than three', () => {
-    const slip = (id, date, selectedAt) => ({ id, pending: 1, unrecorded: 0, selectedAt, selections: [{ date, state: 'pending' }] })
-    const live = [
-      slip('2026-11-27', '2026-11-27', '2026-11-25T00:00:00Z'),
-      slip('2026-11-28', '2026-11-28', '2026-11-25T00:00:00Z'),
-      slip('2026-11-29', '2026-11-29', '2026-11-25T00:00:00Z'),
-      slip('2026-W49', '2026-12-04', '2026-11-26T12:00:00Z'),
-    ]
-    expect(liveTickets(live).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-28', '2026-W49'])
-  })
-
-  it('counts the slips it could not fit instead of hiding them', () => {
-    const text = buildUpdate({
-      day: 'Thu 26 Nov 2026', pick, results: [], record,
-      tickets: [pendingTicket],
-      totals: { won: 0, lost: 0, selections: 2, live: 4 },
-    })
-    expect(text).toContain('<i>+3 more slips on the site</i>')
-  })
-
-  it('shows the slips still in play and hides the ones already settled', () => {
-    const summarized = [
-      { id: '2026-11-29', pending: 4, unrecorded: 0 },
-      { id: '2026-11-27', pending: 0, unrecorded: 0 },
-      { id: '2026-11-21', pending: 0, unrecorded: 0 },
-    ]
-    expect(liveTickets(summarized).map((ticket) => ticket.id)).toEqual(['2026-11-29'])
-    // Two live slips are shown soonest-first, so the one in play tonight is read first.
-    expect(liveTickets([
-      { id: '2026-11-29', pending: 4, unrecorded: 0 },
-      { id: '2026-11-27', pending: 5, unrecorded: 0 },
-    ]).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-29'])
-    // With everything settled, the newest slip is still shown.
-    expect(liveTickets(summarized.slice(1)).map((ticket) => ticket.id)).toEqual(['2026-11-27', '2026-11-21'])
-    expect(liveTickets([])).toEqual([])
+    expect(text).toContain('<i>Last slip: 2026-11-27 — lost, 3 of 5</i>')
+    expect(text).toContain('<i>Next slip: Week of 30 Nov – 6 Dec 2026 · 6 legs · on the site</i>')
   })
 
   it('never exceeds the Telegram limit', () => {

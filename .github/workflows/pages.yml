@@ -7,7 +7,10 @@ on:
   workflow_dispatch:
   # GitHub runs scheduled workflows from the default branch only.
   schedule:
+    # Morning: the day's pick and the slip. Evening: the results that landed
+    # during the day, so the last game's outcome is seen the same night.
     - cron: '17 6 * * *'
+    - cron: '30 21 * * *'
 
 permissions:
   contents: read
@@ -257,6 +260,8 @@ jobs:
           TRACK_RECORD_PATH: telegram-ledger/track-record.json
           MATCHDAY_PATH: telegram-snapshot/matchday.json
           SITE_URL: ${{ needs.deploy.outputs.page_url }}
+          # The evening run stays quiet unless the slip has a game today.
+          ONLY_IF_MATCH_TODAY: ${{ github.event.schedule == '30 21 * * *' }}
 
   schedule_heartbeat:
     name: Scheduled refresh heartbeat

@@ -76,14 +76,23 @@ describe('planning the week ticket', () => {
     expect(plan.selections).toHaveLength(3)
   })
 
+  it('writes nothing while a slip is still to be played', () => {
+    const running = { id: '2026-11-27', selections: [{ date: '2026-11-27', home: 'Werder Bremen', away: 'Mgladbach' }] }
+    // 26 Nov: that slip's game is tomorrow, so the group is still following it.
+    expect(planTicket({ fixtures: sunday, tickets: [running], now: NOW })).toBeNull()
+    // Once everything on the ledger has been played, the next slip is planned.
+    const past = { id: '2026-11-20', selections: [{ date: '2026-11-20', home: 'Old', away: 'Game' }] }
+    expect(planTicket({ fixtures: sunday, tickets: [past], now: NOW })?.id).toBe('2026-W48')
+  })
+
   it('leaves a week alone once it has a ticket', () => {
     const existing = { id: '2026-W48', selections: [{ date: '2026-11-23', home: 'Old', away: 'Game' }] }
     expect(planTicket({ fixtures: sunday, tickets: [existing], now: NOW })).toBeNull()
   })
 
   it('skips a week that any ticket already touches, whatever its id', () => {
-    // A hand-written slip for one day still means that week is being played.
-    const taken = { id: '2026-11-27', selections: [{ date: '2026-11-29', home: 'Roma', away: 'Monza' }] }
+    // A slip from an earlier week is already played, so the planner is free to run.
+    const taken = { id: '2026-11-24', selections: [{ date: '2026-11-24', home: 'Roma', away: 'Monza' }] }
     expect(planTicket({ fixtures: sunday, tickets: [taken], now: NOW })).toBeNull()
     // The week after is planned instead.
     const next = [fixture({ home: 'Cagliari', away: 'Milan', date: '2026-11-30', strengths: [0.7, 2.8] })]
