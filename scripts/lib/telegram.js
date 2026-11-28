@@ -64,24 +64,34 @@ function ticketLines(ticket) {
 // The result of the slip itself, in one line: in play, won, or lost with the
 // leg that broke it named. This is the answer to "did I win it or not".
 function verdictLine(ticket, { count, settled, open }) {
+  const missed = ticket.selections.filter((selection) => selection.state === 'lost').map((selection) => selection.pick)
+  // One missed leg and the slip is gone, even with games still to play: saying
+  // "in play" then would let the reader believe it can still come in.
+  if (missed.length) {
+    const named = missed.slice(0, 2).map(escapeHtml).join(' and ')
+    const rest = missed.length > 2 ? `, +${missed.length - 2} more` : ''
+    const tail = open > 0 ? ` · ${open} still to play` : ''
+    return `<b>LOST</b> · ${settled} of ${count} settled · ${named}${rest} missed${tail}`
+  }
   if (open > 0) {
     return `<b>${settled === 0 ? 'NOT STARTED' : 'IN PLAY'}</b> · ${settled} of ${count} settled · ${open} to play`
   }
-  if (ticket.lost === 0) {
-    const voided = ticket.push ? ` · ${ticket.push} void` : ''
-    return `<b>WON</b> · ${count - ticket.push} of ${count}${voided}`
-  }
-  const missed = ticket.selections.filter((selection) => selection.state === 'lost').map((selection) => selection.pick)
-  const named = missed.slice(0, 2).map(escapeHtml).join(' and ')
-  return `<b>LOST</b> · ${ticket.won} of ${count} · ${named}${missed.length > 2 ? `, +${missed.length - 2} more` : ''} missed`
+  const voided = ticket.push ? ` · ${ticket.push} void` : ''
+  return `<b>WON</b> · ${count - ticket.push} of ${count}${voided}`
 }
 
 // A multiple is one slip whose legs come from different matches, so it is shown
 // as a single line with the combined price: too many legs and the slip stops
 // fitting on a phone.
 function multipleLines(multiples = []) {
-  const valid = multiples.filter((multiple) => multiple.state !== 'invalid')
-  if (!valid.length) return []
+  // A dead multiple is not shown with a price: quoting a bet that can no
+  // longer win is how a slip gets read as still alive.
+  const valid = multiples.filter((multiple) => multiple.state !== 'invalid' && multiple.state !== 'lost')
+  if (!valid.length) {
+    return multiples.some((multiple) => multiple.state === 'lost')
+      ? ['<i>No multiple from this slip came in.</i>']
+      : []
+  }
   const lines = [heading('🧮', 'Multiples'), '<i>One slip · every leg must win · different matches</i>']
   for (const multiple of valid) {
     const name = escapeHtml(multiple.short ?? multiple.label ?? 'Multiple')

@@ -82,7 +82,7 @@ describe('telegram formatting', () => {
     const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: settledTicket })
     expect(text).toContain("✅ Fri 27 Nov · Werder Bremen 2 : 0 M'gladbach → Werder Bremen win")
     expect(text).toContain("❌ Sat 28 Nov · Mainz 0 : 1 Union Berlin → Mainz win")
-    expect(text).toContain('<b>LOST</b> · 1 of 2 · Mainz win missed')
+    expect(text).toContain('<b>LOST</b> · 2 of 2 settled · Mainz win missed')
     expect(text).not.toContain('Book each at its min price')
   })
 
@@ -169,6 +169,27 @@ describe('telegram formatting', () => {
     })
     expect(text).toContain('<i>Last slip: 2026-11-27 — lost, 3 of 5</i>')
     expect(text).toContain('<i>Next slip: Week of 30 Nov – 6 Dec 2026 · 6 legs · on the site</i>')
+  })
+
+  it('calls the slip lost the moment a leg misses, even with games still to play', () => {
+    const slip = {
+      id: '2026-11-27',
+      label: 'Weekend of 27–29 November 2026',
+      won: 1, lost: 1, push: 0,
+      selections: [
+        { day: 'Fri 27 Nov', home: 'Werder Bremen', away: "M'gladbach", fixture: 'Werder Bremen v M\'gladbach', pick: 'Werder Bremen win', probability: '68%', need: '1.48', state: 'won', score: 'Werder Bremen 2 : 0 M\'gladbach' },
+        { day: 'Fri 27 Nov', home: 'Venezia', away: 'Bologna', fixture: 'Venezia v Bologna', pick: 'Bologna win', probability: '57%', need: '1.76', state: 'lost', score: 'Venezia 0 : 0 Bologna' },
+        { day: 'Sat 28 Nov', home: 'Mainz', away: 'Union Berlin', fixture: 'Mainz v Union Berlin', pick: 'Mainz win', probability: '60%', need: '1.68', state: 'pending', score: null },
+      ],
+      multiples: [{ short: 'Double', legs: [{ short: 'Werder Bremen' }, { short: 'Mainz' }], probability: '40.8', need: '2.46', state: 'lost' }],
+    }
+    const text = buildUpdate({ day: 'Sat 28 Nov 2026', pick, results: [], record, ticket: slip })
+    // Not "in play": the slip cannot come in, and the reader should know now.
+    expect(text).toContain('<b>LOST</b> · 2 of 3 settled · Bologna win missed · 1 still to play')
+    expect(text).not.toContain('IN PLAY')
+    // A dead multiple keeps no price.
+    expect(text).toContain('<i>No multiple from this slip came in.</i>')
+    expect(text).not.toContain('min 2.46')
   })
 
   it('never exceeds the Telegram limit', () => {
