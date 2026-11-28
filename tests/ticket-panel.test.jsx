@@ -73,7 +73,8 @@ describe('ticket panel', () => {
     expect(within(row).getByText(/2 legs · Werder Bremen \+ Real Betis/)).toBeInTheDocument()
     // 0.68 * 0.59 = 40.1%, which needs 2.50 rather than the fair 2.49.
     expect(within(row).getByText('40.1%')).toBeInTheDocument()
-    expect(within(row).getByText('min 2.50')).toBeInTheDocument()
+    // The price is stated next to how often it loses: 40.1% -> 7 losses in 12.
+    expect(within(row).getByText(/min 2\.50 · loses 7 in 12/)).toBeInTheDocument()
     expect(within(row).getByText('LOST')).toBeInTheDocument()
   })
 

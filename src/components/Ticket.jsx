@@ -78,7 +78,7 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
             <div className="ticket__multiples">
               <div className="ticket__multiples-head">
                 <strong>MULTIPLES</strong>
-                <small>the same singles combined into one slip · every leg from a different match</small>
+                <small>the same singles combined into one slip · every leg from a different match · long shots, not a plan</small>
               </div>
               <ul>
                 {ticket.multiples.map((multiple) => (
@@ -93,7 +93,10 @@ export default function Ticket({ tracker, tickets = ticketData.tickets }) {
                     </div>
                     <div className="ticket__multiples-price">
                       <span>{percent(multiple.probability)}</span>
-                      <small>{multiple.requiredPrice === null ? 'no price' : `min ${price(multiple.requiredPrice)}`}</small>
+                      <small>
+                        {multiple.requiredPrice === null ? 'no price' : `min ${price(multiple.requiredPrice)}`}
+                        {Number.isFinite(multiple.probability) ? ` · loses ${Math.round((1 - multiple.probability) * 12)} in 12` : ''}
+                      </small>
                     </div>
                     <span className={`ticket__chip is-${multiple.state}`}>{STATUS_LABELS[multiple.state] ?? multiple.state}</span>
                   </li>

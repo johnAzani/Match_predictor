@@ -92,7 +92,9 @@ function multipleLines(multiples = []) {
       ? ['<i>No multiple from this slip came in.</i>']
       : []
   }
-  const lines = [heading('🧮', 'Multiples'), '<i>One slip · every leg must win · different matches</i>']
+  // Multiples are shown because they were asked for, but stated for what they
+  // are: the quantity that matters is how often they lose, not the big price.
+  const lines = [heading('🧮', 'Multiples'), '<i>Long shots · every leg must win · not a plan</i>']
   for (const multiple of valid) {
     const name = escapeHtml(multiple.short ?? multiple.label ?? 'Multiple')
     const legs = escapeHtml((multiple.legs ?? []).map((leg) => leg.short ?? leg.name ?? leg).join(' + '))
@@ -100,7 +102,9 @@ function multipleLines(multiples = []) {
     if (multiple.state === 'won' || multiple.state === 'lost' || multiple.state === 'push') {
       lines.push(`${mark} ${name} · ${legs}`)
     } else {
-      lines.push(`${mark} ${name} · ${legs} → ${escapeHtml(multiple.probability)}%, min ${escapeHtml(multiple.need)}`)
+      const chance = Number(multiple.probability) / 100
+      const losing = Number.isFinite(chance) ? ` · loses ${Math.round((1 - chance) * 12)} in 12` : ''
+      lines.push(`${mark} ${name} · ${legs} → ${escapeHtml(multiple.probability)}%, min ${escapeHtml(multiple.need)}${losing}`)
     }
   }
   const decided = valid.filter((multiple) => multiple.state === 'won' || multiple.state === 'lost')
@@ -138,7 +142,9 @@ function recordLines(record, totals, shownSelections) {
   // The all-ticket tally only earns its line once something has actually been
   // decided; before that it is a number that has not been earned yet.
   if (totals && totals.selections > shownSelections && (totals.won ?? 0) + (totals.lost ?? 0) > 0) {
-    lines.push(`Tickets ${totals.won}–${totals.lost} · ${totals.selections} selections`)
+    // This counts legs, not slips: calling them tickets made two beaten legs
+    // look like two lost tickets.
+    lines.push(`Legs ${totals.won}–${totals.lost} of ${totals.selections} across all slips`)
   }
   return lines
 }
